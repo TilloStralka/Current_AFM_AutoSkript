@@ -1,101 +1,105 @@
 """
-Writer: 
-Tillmann Stralka 2020.Mai.05
-Owner: 
-HLP University of Leipzig
-About:
-Python version 2.7
-Automatic procession of AFM files.
-Finding, listing, fitfunctions, image making, statistic extraction and plotting 
-Correlation of Current and topographic information, convolution of dynamicscans
+AFM Data Processing Utility Functions
+
+This module contains functions for processing and analyzing AFM (Atomic Force Microscopy) data.
+Functions are organized into the following categories:
+
+1. Loading and Saving
+   - File I/O operations
+   - Path handling
+   - Data import/export
+
+2. Data Processing
+   - Data frame selection and manipulation
+   - Edge cutting
+   - Area extraction
+   - Fitting and averaging
+
+3. Visualization
+   - Color selection
+   - Range setting
+   - Image saving
+   - GIF creation
+   - Histogram generation
+   - Statistical plotting
+
+4. Data Analysis
+   - Statistical calculations
+   - Line profile extraction
+   - Peak detection
+   - Gaussian fitting
+
+5. Drift Analysis
+   - Drift calculation
+   - Offset determination
+   - Drift list management
+   - Maximum drift detection
+
+6. Helper Functions
+   - String parsing
+   - Time extraction
+   - Color mapping
+   - Array conversion
+
+7. Pipeline Functions
+   - Topography processing pipeline
+   - Current processing pipeline
+   - Error processing pipeline
+   - Data assembly
+
+Each function is documented with its specific purpose and parameters.
 """
 
-
-#Some python libs have to be added via PATH since they are near gwyddion
-import sys
-sys.path.append("/usr/local/opt/python@2/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages")
-sys.path.append("/usr/share/gwyddion/pygwy")
-import pygtk
-pygtk.require20() # adds gtk-2.0 folder to sys.path
-sys.path.append("/usr/local/Cellar/gwyddion/2.52/share/gwyddion/pygwy")
-import gwyutils
-#Importing all other necessary libraries from the python surounding 
-import gwy
-import os, time
-import numpy
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
-import matplotlib as mpl
+# Importing necessary libraries
+import pandas as pd
 import numpy as np
-from scipy.stats import norm
-from scipy.stats import halfnorm
-from scipy.optimize import curve_fit
-from scipy.signal import find_peaks
+from scipy.stats import boxcox, boxcox_normmax
+import gc
+import plotly as px
+import sys
+import os
+#import matplotlib.pyplot as plt
+#import matplotlib.colors as mpl
+#import matplotlib.cm as cmx
+#import matplotlib.colors as colors
+#import imageio
 import scipy.signal
-import sys 
-import pandas as pd  
-import shutil  
-import cv2 
-import imageio
-from pdf2image.exceptions import (PDFInfoNotInstalledError, PDFPageCountError, PDFSyntaxError)
-from pdf2image import convert_from_path, convert_from_bytes
-import glob
+from scipy.optimize import curve_fit
+#from skimage.feature import peak_local_max, find_peaks
 
 
 ###############################################################################
-        #   Declare empty lines and dataframes   #
+#   Global Variables    
 ###############################################################################
-#Create an empty line in which all data is stored before it gets saved to another file 
-#statistics_current and so are empty lines where the statistic values will be saved, and the lists will be made to csv datas 
+# Statistics lists for storing measurement values
 statistics_current = []
 statistics_topo = []
 statistics_error = []
 statistics_current_gb = []
 statistics_current_grain = []
+
+# Data frame lists for storing processed data
 dataframes_current = []
 dataframes_topo = []
 dataframes_error = []
+
+# Line scan data lists
 datalines_current = []
 datalines_topo = []
 datalines_distance = []
-#For convolution declare drift at the beginning, zeros     
-array_old = 0
-array_old2 = 0
-offset_by_drift = (0,0)
-offset_by_drift2 = (0,0)
-#For Line extraction
-line_x_start = 46
-line_y_start = 47
-line_x_end = 58
-line_y_end = 34 
-line_res = 1000
-peak_x_position = 0 #only for the beginning set 0, then it will be overwritten 
+
+# Drift tracking variables
+array_old = 0  # Previous array for drift calculation
+array_old2 = 0  # Secondary previous array for drift calculation
+offset_by_drift = (0, 0)  # Cumulative drift offset
+offset_by_drift2 = (0, 0)  # Secondary drift offset
 
 
+##################################################################################################
+########################## Functions for Loading and Saving ######################################
+##################################################################################################
 
-
-
-###############################################################################
-        #   Subfunctions    #
-###############################################################################
-def working_path():
-    #Working path in which the files to be processed are located, either way Linux or Mac
-    path_linux = "/home/tillmann/Desktop/DataToEvaluate/"
-    path_mac = "/Users/tillo/DataToEvaluate/"
-    if os.path.isdir(path_linux):
-        print("Seems to be a linux")
-        path = path_linux
-    else:
-        print( "Seems to be a mac")
-        path = path_mac
-    return path
-        
-def sortandlist(path): 
-    #Get file names from the working path, only .tiff names 
-    names = os.listdir(path)
-    #The data is in the folder sorted after name (which is chronologically)
-    files_current = [k for k in names if "Current" in k]
+def sortandlist(path):
     files_topo = [k for k in names if "Topography" in k]
     files_amp = [k for k in names if "Amplitude" in k]
     files_phase = [k for k in names if "Phase" in k]  
@@ -123,7 +127,7 @@ def sortandlist(path):
     print(N)
     return N, files_topo, files_current, files_amp, files_phase, files_error
 
-def get_info_sheet(path, name):
+def get_info_sheet(path, name): 
     #Function to load the info data for all those scans, which must include: 
     #voltasge List, Number of lines which should be cut away, 
     #Read function 
@@ -223,20 +227,7 @@ def make_folders(path):
     path_jpgs = path + "JPGs"
     return path_pdfs, path_histo, path_statistics, path_gifs, path_jpgs, path_lines, path_fitted, path_stableframe
 
-def extract_voltage(string):
-    for element in string.split("_"):
-        if "V" in element and "." in element:
-            #print "First element in list only the Voltage number extraction:"
-            #print (float(element.replace("V","")))
-            return float(element.replace("V",""))
-        
-def extract_time(string):        
-    for element in string.split("_"):
-        if "00" in element and "." in element:
-            #print "First element in list only the Voltage number extraction:"
-            #print (float(element.replace("V","")))
-            return str(element) 
-    
+
 def load_data(path, name):
     print("Es wird gerade folgende Datei bearbeitet:")
     print(name)
@@ -252,6 +243,59 @@ def load_data(path, name):
     print "With the following ids:"
     print ids
     return ids, actcon
+
+def data_save(actcon, fname, path_saving, path_working):
+    #Save files as a new .gwy file with a _fitted ending
+    os.chdir(path_saving)
+    #gwy.gwy_file_save(actcon, fname)
+    
+    gwy.gwy_file_save(actcon, fname + ".gwy")
+    os.chdir(path_working)
+    return actcon
+
+def remove(actcon):
+    #Remove file from browser to prevent program crashes due to overload
+    gwy.gwy_app_data_browser_remove(actcon)	
+
+def SaveStatisticsToFile(daten, path_statistics, voltage_list, name, unit):
+    #Saving of all statistic data which is in the data list into a csv data 
+    #Also adds the voltage list to the csv data 
+    print("Save statistics data....")    
+    #before saving change into statistics folder
+    os.chdir(path_statistics)
+    try:
+        d = open(name, "w")
+    except:
+        print("Dateizugriff nicht erfolgreich")
+        sys.exit(0)
+    #Saving the data in a csv file
+    d.write("Name" + ";"  +"Voltage [V]" + ";" + "R_q square roughness ["+unit+"]" + ";" + "R_a mean roughness ["+unit+"]" + ";" + "Maximum ["+unit+"]" + ";" + "Minimum ["+unit+"]" + ";" + "Average ["+unit+"]" + ";" + "SSK Skew" + ";" + "Kurtosis" + ";" + "Median ["+unit+"]" + ";" + "Sum ["+unit+"]" + ";" + "Area [mym^2]" + ";" + "Datei" + ";" + "Number of Scan[#]" + "\n" )
+    i = 0
+    for zwischendaten in daten:
+        # zwischendaten = [str(element) for element in zwischendaten]
+        # d.write(";".join(zwischendaten) + "\n")
+        d.write(zwischendaten[0] + ";" + str(voltage_list[i]) + ";" + str(zwischendaten[1]) + ";" + str(zwischendaten[2]) + ";" + str(zwischendaten[3]) + ";" +   	str(zwischendaten[4]) + ";" + str(zwischendaten[5]) + ";" + str(zwischendaten[6]) + ";" + str(zwischendaten[7]) + ";" + str(zwischendaten[8]) + ";" + str(zwischendaten[9]) + ";" + str(zwischendaten[10]) + ";" + str(zwischendaten[11]) + ";" + str(zwischendaten[12])  + "\n")
+        i = i + 1
+    #close the just written data an return         
+    d.close()
+	#Change back to working directory
+    os.chdir(path)    
+    return 
+
+def load_statistics_data(path_statistics, name):
+    #Function to load statistics data csv data into the browser and make statistics data frame 
+    #Change to statistics folder for loading csv data
+    os.chdir(path_statistics)
+    #Read function 
+    df_stat = pd.read_csv(name, sep=";", header=[0])
+    #Go back to working directory 
+    os.chdir(path)
+    print "Loading of csv data worked!"
+    return df_stat
+
+##################################################################################################
+########################## Functions for Data Processing ##########################################
+##################################################################################################
 
 def select_dataframe(actcon, parameter_name, key):
     #Select df with key id 0 since the tiff only has one 
@@ -359,58 +403,6 @@ def area_extract(dataframe, actcon, name, drift, ite, x_total_offset, y_total_of
     #Select dataframe and add to browser, so it can be treated 
     gwy.gwy_app_data_browser_add_data_field(stable2, actcon, True)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-    print "The ids of all df in the active container:"
-    ids_list =  gwy.gwy_app_data_browser_get_data_ids(actcon)
-    print ids_list
-    print type(ids_list)
-    print "Size of new df:"
-    print stable2.get_xres()
-    print stable2.get_yres()
-    print "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ"
-    print ids_list[-1]
-    print name 
-    
-    key = ids_list[-1]
-    
-    
-    gwy.gwy_app_data_browser_select_data_field(actcon, ids_list[-1])
-    #df_small = select_dataframe(actcon, parameter_name=voltage_list[i], key = ids_list[-1])
-    #rename titel in the new created channel to get a better subscription within the gifs     
-    actcon["/" + str(key) +"/data/title"] = name
-    return stable2, key
-  
-    
-def select_color(actcon, color, key):
-    #Datafield output with setting for color palette    
-    actcon.set_string_by_name("/" + str(key) + "/base/palette", color)
-    return actcon
-
 def fit_functions(actcon, df, i, mode):
     #Classical Gwyddion Fitfunctions, leveling, align rows, scar removement, fix zero 
     if i>0: 
@@ -437,11 +429,71 @@ def average_check(x, actcon, key):
     gwy.gwy_app_data_browser_select_data_field(actcon, key)    
     return x
 
+def zero_check(df, actcon, key):
+    #Get the zero offset and set it zero, as well as the width of the gaussian noise around 0
+    #First make histogram and find maximum y value (here is the 0 current)        
+    y, x = np.histogram(df, bins = 40000)
+    index_of_maximum = np.where(y == y.max())
+    array_y_max = y, x[index_of_maximum]
+    offset = array_y_max[1]
+    print offset
+    count = offset.size
+    if count > 1: 
+        offset = offset[0]
+        print "We have double maximum count value, therefore we are chosing the first one:"
+        print offset 
+    print "Point of Maximum:"
+    print offset
+    #Add or Substrate to whole df 
+    df.add(-offset)
+    df.data_changed()
+    #Make second similar df and make df absolut and fit a half gaussian distribution around it 
+    df_fit = df.duplicate()
+    #print type(df_fit)
+    #df_fit = df_fit.multiply_fields(df_fit, df_fit)
+    #df_fit = 
+    y_fit, x_fit = np.histogram(df_fit, bins = 4000)  
+    #print y_fit, x_fit
+    
+    mean, var = halfnorm.stats(moments="mv")
+    #print mean, var   
+    #Select datafield again, due to duplocate there are now 2 df inside the container 
+    df = actcon[gwy.gwy_app_get_data_key_for_id(key)]
+    gwy.gwy_app_data_browser_select_data_field(actcon, key)
+    return df, offset
+
+##################################################################################################
+########################## Functions for Visualization ###########################################
+##################################################################################################
+
+def select_color(actcon, color, key):
+    """Set color palette for data visualization.
+    
+    Args:
+        actcon: Active container
+        color (str): Color palette name (e.g. 'Gwyddion.net', 'Red-Cyan')
+        key (int): Data field key
+        
+    Returns:
+        actcon: Updated container with new color palette
+    """   
+    actcon.set_string_by_name("/" + str(key) + "/base/palette", color)
+    return actcon
+
 def select_range(actcon, range_topo, key):
-    # Setting limits for the scale in the resulting image (Fixed imaging)
-    actcon.set_double_by_name("/" + str(key) + "/base/max", range_topo)
-    actcon.set_double_by_name("/" + str(key) + "/base/min", -range_topo)
-    actcon.set_int32_by_name("/" + str(key) + "/base/range-type", 1)
+    """Set fixed scale range for visualization.
+    
+    Args:
+        actcon: Active container
+        range_val (float): Maximum absolute value for scale
+        key (int): Data field key
+        
+    Returns:
+        actcon: Updated container with fixed range
+    """
+    actcon.set_double_by_name("/{}/base/max".format(key), range_val)
+    actcon.set_double_by_name("/{}/base/min".format(key), -range_val)
+    actcon.set_int32_by_name("/{}/base/range-type".format(key), 1)
     #set range type: 0 = Full, 1 = Fixed, 2 = Automatic, 3 = Adaptive     
     #actcon.set_logarithmic(is_logarithmic)
     return actcon
@@ -502,9 +554,6 @@ def make_gif(path, time, name):
     writer.close()            
     return
 
-#################
-
-
 def make_pdf_to_jpg(image, resolution):
     #A little function to convert pdfs to pixel images, in that case jpgs to make gifs or
     #Videos, since the video makers can not handle vector graphics 
@@ -521,578 +570,39 @@ def make_pdf_to_jpg(image, resolution):
     #print "Conversion worked!"    
     return (name + ".jpg")
 
-def get_statistic(x, actcon, filename, Name, factor, daten, i, noise, key):
-    #Extraktion of the statistic values avg, ra, rms, skwe, kurosis and append to the empty statistics list 
-    #First the noise will be removed from the dataframe (a mask is beeing applied)
-    #Steps are: duplicate, get max, set range (cutoff), get stat, select normal df again 
-    print "We are in the statistics function" 
-    #Get maximum for the clamps 
-    max = x.get_max()
-    #Extraktion of the statistic values avg, ra, rms, skwe, kurosis and append to the empty statistics list 
-    statistics = x.get_stats()
-    avg = statistics[0]
-    ra = statistics[1]
-    rms = statistics[2]
-    skwe = statistics[3]
-    kurosis = statistics[4]
-    min = x.get_min()
-    median = x.get_median()
-    Sme = x.get_sum()
-    surfc = x.get_surface_area()
-    #Select datafield again, due to duplocate there are now 2 df inside the container 
-    df = actcon[gwy.gwy_app_get_data_key_for_id(key)]
-    gwy.gwy_app_data_browser_select_data_field(actcon, key)    
-    #recalculte all statistic values to the order of magnitude that makes sense 
-    #the area SURFC is given in square mycrometer, therefore here no recalculation
-    avg, ra, rms, max, min, median, Sme, surfc = avg*(10**factor), ra*(10**factor), rms*(10**factor), max*(10**factor), min*(10**factor), median*(10**factor), Sme*(10**factor), surfc*(10**12)
-    #round them to 2 digits after point 
-    avg = round(avg, 2)    
-    ra = round(ra, 2)
-    rms = round(rms, 2)
-    skwe = round(skwe, 2)
-    kurosis = round(kurosis, 2)
-    max = round(max, 2)
-    min = round(min, 2)
-    Sme = round(Sme, 2)
-    median = round(median,2)    
-    surfc = round(surfc,2)    
-    zwischendaten = [Name, ra, rms, max, min, avg, skwe, kurosis, median, Sme, surfc, filename, i]
-    print "Here the statistic values"
-    print zwischendaten
-    print filename
-    daten.append(zwischendaten)
-    return statistics, max, min, Sme, zwischendaten, df 
-
-def df_save(df, actcon, dataframes, fname, name, voltage):
-    #saves df AFTER! fitting into the list of dataframes for the overview histogram  
-    zwischendaten2 = [name, voltage, df, actcon, fname]
-    dataframes.append(zwischendaten2)
-    print "Dataframe has been added to the list of dataframes"
-    print df
-    return df
-
-def data_save(actcon, fname, path_saving, path_working):
-    #Save files as a new .gwy file with a _fitted ending
-    os.chdir(path_saving)
-    #gwy.gwy_file_save(actcon, fname)
-    
-    gwy.gwy_file_save(actcon, fname + ".gwy")
-    os.chdir(path_working)
-    return actcon
-
-def remove(actcon):
-    #Remove file from browser to prevent program crashes due to overload
-    gwy.gwy_app_data_browser_remove(actcon)	
-
-def SaveStatisticsToFile(daten, path_statistics, voltage_list, name, unit):
-    #Saving of all statistic data which is in the data list into a csv data 
-    #Also adds the voltage list to the csv data 
-    print("Save statistics data....")    
-    #before saving change into statistics folder
-    os.chdir(path_statistics)
-    try:
-        d = open(name, "w")
-    except:
-        print("Dateizugriff nicht erfolgreich")
-        sys.exit(0)
-    #Saving the data in a csv file
-    d.write("Name" + ";"  +"Voltage [V]" + ";" + "R_q square roughness ["+unit+"]" + ";" + "R_a mean roughness ["+unit+"]" + ";" + "Maximum ["+unit+"]" + ";" + "Minimum ["+unit+"]" + ";" + "Average ["+unit+"]" + ";" + "SSK Skew" + ";" + "Kurtosis" + ";" + "Median ["+unit+"]" + ";" + "Sum ["+unit+"]" + ";" + "Area [mym^2]" + ";" + "Datei" + ";" + "Number of Scan[#]" + "\n" )
-    i = 0
-    for zwischendaten in daten:
-        # zwischendaten = [str(element) for element in zwischendaten]
-        # d.write(";".join(zwischendaten) + "\n")
-        d.write(zwischendaten[0] + ";" + str(voltage_list[i]) + ";" + str(zwischendaten[1]) + ";" + str(zwischendaten[2]) + ";" + str(zwischendaten[3]) + ";" +   	str(zwischendaten[4]) + ";" + str(zwischendaten[5]) + ";" + str(zwischendaten[6]) + ";" + str(zwischendaten[7]) + ";" + str(zwischendaten[8]) + ";" + str(zwischendaten[9]) + ";" + str(zwischendaten[10]) + ";" + str(zwischendaten[11]) + ";" + str(zwischendaten[12])  + "\n")
-        i = i + 1
-    #close the just written data an return         
-    d.close()
-	#Change back to working directory
-    os.chdir(path)    
-    return 
-
-def load_statistics_data(path_statistics, name):
-    #Function to load statistics data csv data into the browser and make statistics data frame 
-    #Change to statistics folder for loading csv data
-    os.chdir(path_statistics)
-    #Read function 
-    df_stat = pd.read_csv(name, sep=";", header=[0])
-    #Go back to working directory 
-    os.chdir(path)
-    print "Loading of csv data worked!"
-    return df_stat
-
-def make_statistics_plot(df_stat, x_column, y_column, path_statistics):
-    print "We are in the statistics plot function!"
-    #Make a string list of the header of the statistics df to call them in plot
-    names = list(df_stat.columns)
-    #Define the number of plots with the number of elements in y_column
-    n = len(y_column)    
-    #make single plots 
-    for i in y_column:
-        #indexing the list to get a consistent spread of color change
-        N = y_column.index(i)
-        #Making a plot of the statistic values of the evaluated scans
-        fig, ax = plt.subplots(figsize=(5,5))
-        # determine x-data
-        #print df_stat.iloc[:, i]
-        y = df_stat.iloc[:, i]
-        #print x.max
-        #print df_stat.iloc[:, 10]
-        x = df_stat.iloc[:, x_column]
-        #more settings for the plot, color scale over n number of plots with index N in the list
-        ax.plot(x,y, marker = "p", color = get_colormap(N ,n))        
-        #Settings for the plot        
-        ax.legend(loc = 2, fontsize = 14, fancybox = True, framealpha = 1)
-        ax.set_xlabel(names[x_column], fontsize = 14)
-        ax.set_ylabel(names[i], fontsize = 14)
-        #Set axis labeling
-        ax.tick_params(axis="x", labelsize=14)
-        ax.tick_params(axis="y", labelsize=14)
-        #tight layout prevents cutting of during pdf making 
-        plt.tight_layout()
-        
-        #Change to statistics folder for saving statistic plots
-        os.chdir(path_statistics)
-        #Save function
-        plt.savefig(names[i] +".pdf", format="pdf")
-        #Go back to working directory 
-        os.chdir(path)
-        plt.show() 
-    return  
-
-def make_statistics_plot(df_stat, path_save, x_column, y_column, label):
-    print "We are in the statistics plot function!"
-    #Make a string list of the header of the statistics df to call them in plot
-    names = list(df_stat.columns)
-    #Define the number of plots with the number of elements in y_column
-    n = len(y_column) 
-    print n
-    for i in y_column:
-        print i
-        #indexing the list to get a consistent spread of color change
-        N = y_column.index(i)
-        print N
-        #Making a plot of the statistic values of the evaluated scans
-        fig, ax = plt.subplots(figsize=(5,5))
-        # determine x-data
-        #print df_stat.iloc[:, i]
-        y = df_stat.iloc[:, i]
-        #print x.max
-        #print df_stat.iloc[:, 10]
-        x = df_stat.iloc[:, x_column]
-        #more settings for the plot, color scale over n number of plots with index N in the list
-        ax.plot(x,y, marker = "p", color = get_colormap(N ,n))        
-        #Settings for the plot        
-        ax.legend(loc = "best", fontsize = 14, fancybox = True, framealpha = 1)
-        ax.set_xlabel(names[x_column], fontsize = 14)
-        ax.set_ylabel(names[i], fontsize = 14)
-        #Set axis labeling
-        ax.tick_params(axis="x", labelsize=14)
-        ax.tick_params(axis="y", labelsize=14)
-        #tight layout prevents cutting of during pdf making 
-        plt.tight_layout()
-        os.chdir(path_save)
-        print os.getcwd()
-        plt.savefig(names[i] + label + ".pdf", format="pdf")
-        plt.show() 
-    return  
-
-def make_statistics_plot_multi(df, x_column, y_column1, y_column2, y_column3, path_statistics, plot_min, plot_max, label, name):
-    #make multiplots with one x-axis and several y data
-    print "We are in the statistics multi plot function!"
-    #Making a plot of the statistic values of the evaluated scans
-    fig, ax = plt.subplots(figsize=(10,5))        
-    #determine x-data
-    #print df_stat.iloc[:, i]
-    x = df.iloc[:,x_column]
-    #print x.max
-    #determin y datas 
-    y1 = df.iloc[:,y_column1]
-    y2 = df.iloc[:,y_column2]
-    y3 = df.iloc[:,y_column3]
-    #setting color and mark style for graphs
-    ax.plot(x,y1, marker = "p", color = "red", linestyle = "None")
-    ax.plot(x,y2, marker = "p", color = "blue", linestyle = "None")
-    ax.plot(x,y3, marker = "p", color = "black", linestyle = "None")    
-    #more settings for the plot, color scale over n number of plots with index N in the list
-    #plt.plot(x, y1, marker = "p", color = "r", x,y3, marker = "p", color = "b")
-    #, color = "b" ,x,y3, marker = "p", color = "b"        
-    #Settings for the plot  
-    #Legend      
-    ax.legend(loc = 4, fontsize = 14, fancybox = True, framealpha = 1)
-    #axis, name, size of numbers
-    ax.set_xlabel("Voltage ($\it{V}$)", fontsize = 14)
-    ax.set_ylabel(label, fontsize = 14)
-    ax.tick_params(axis="x", labelsize=14)
-    ax.tick_params(axis="y", labelsize=14)
-    ax.set_ylim(plot_min, plot_max)
-    
-    #ax.set_ylim(10**-2,10**5)
-    
-    #y1 = abs(y1)
-    #y2 = abs(y2)
-    #y3 = abs(y3)
-    #plt.semilogy()
-    #tight layout prevents cutting of during pdf making 
-    plt.tight_layout()
-    #Change to statistics folder for saving statistic plots
-    os.chdir(path_statistics)
-    #Save function
-    plt.savefig(name + ".pdf", format="pdf")
-    #Go back to working directory 
-    os.chdir(path)
-    plt.show() 
-    return 
-
-def get_opimum_range_topo(dframe, column_name):
-    #get optimum range out of statistic values df for imaging 
-    #make only half of value, since average will be set to zero    
-    listofvalues = dframe[column_name]
-    print listofvalues
-    print type(listofvalues)
-    maximum = listofvalues.max()
-    maximum = maximum/2
-    maximum = round(maximum, -1)
-    maximum = int(maximum) 
-    print "Optimum +- range for all Images:"
-    print maximum
-    return maximum
-
-def get_opimum_range_current(dframe, column_name1, column_name2):
-    #get optimum range out of statistic values df for imaging   
-    listofvalues1 = dframe[column_name1]
-    listofvalues2 = dframe[column_name2]    
-    maximum1 = int(listofvalues1.max())
-    maximum2 = int(abs(listofvalues2.min()))    
-    if maximum1 >= maximum2:
-        m = maximum1
-    else:
-        m = maximum2
-    m = round(m, -1)
-    print "Optimum +- range for all Current Images:"
-    print m
-    return m
-
-def get_opimum_range_error(dframe, column_name1, column_name2):
-    #get optimum range out of statistic values df for imaging  
-    listofvalues1 = dframe[column_name1]
-    listofvalues2 = dframe[column_name2]    
-    print listofvalues1
-    print listofvalues2
-    maximum1 = listofvalues1.max()
-    maximum2 = abs(listofvalues2.min())    
-    print maximum1
-    print maximum2
-    if maximum1 >= maximum2:
-        m = maximum1
-    else:
-        m = maximum2
-    m = round(m, 1)
-    m = m
-    print "Optimum +- range for all Error Images:"
-    print m
-    return m
-
-def get_maximum_drift(df, column_name1, column_name2):
-    #get the optimum range for the cut out of stable image 
-    listofvaluesX = df[column_name1]
-    listofvaluesY = df[column_name2]
-    maxX = listofvaluesX.max()
-    minX = abs(listofvaluesX.min())
-    if maxX >= minX:
-        total_drift_x = maxX 
-    else:
-        total_drift_x = -minX
-    maxY = listofvaluesY.max()
-    minY = abs(listofvaluesY.min())
-    if maxY >= minY:
-        total_drift_y = maxY 
-    else:
-        total_drift_y = -minY            
-    return total_drift_x, total_drift_y
-    
-def get_line(df, factor, x_start, y_start, x_end, y_end, res):
-    #Function takes the following values: 
-    #scol, srow, ecol, erow, res, thickness, interpolation
-    # Gives back a list of values, which are hight or current a.s.f. and the size of one datapoint in lateral resolution (nano meter)
-    print "check"
-    df_line = df.get_profile(x_start, y_start, x_end, y_end, res,5,2)
-    #print "The real physical size of the extracted dataline"    
-    df_line.multiply(10**factor)
-    real_size = df_line.get_real()
-    #print real_size
-    line_res = df_line.get_res()
-    #print "Line size"
-    #print line_res
-    #print (real_size/line_res)
-    #line_point_size = (10**factor) * df_line.get_dx()
-    line_point_size = (10**factor) *(real_size/line_res)
-    print "The size of one idx in the numpy array /which is the line (in nm)"
-    print line_point_size
-    df_line_x = [] 
-    for l in range(line_res):
-        df_line_x.append(l*line_point_size)
-    return df_line, df_line_x, line_point_size
-
-def peak_extraction(i, x_data, y_data, step_size, peak_x_position, startingpoint, width): 
-    #Function finds peak of segment in the dataline, set starting point bevor the peak starts 
-    print "We are in the peak find function" 
-    #Declare the y data from the gwy-Liste file and make it an array, then make all values positive
-    y_all = y_data.get_data()    
-    y = np.asarray(y_all)
-    y = np.absolute(y)
-    x = np.asarray(x_data)
-
-    n_points = int(round(width/step_size))
-    print "number of points of region we like to extract" 
-    print n_points
-    
- 
-    if i==0:
-        idx = (np.abs(x-startingpoint)).argmin()
-        print idx
-        print x[idx]
-        x = x[idx-n_points:idx+n_points]
-        #print x 
-        #x.flat[np.abs(a - 600).argmin()]
-        y = y[idx-n_points:idx+n_points]
-    else:
-        startingpoint = x[peak_x_position] 
-        idx = (np.abs(x-startingpoint)).argmin()
-        print idx
-        print x[idx]
-        x = x[idx-n_points:idx+n_points]
-    #print x 
-    #x.flat[np.abs(a - 600).argmin()]
-        y = y[idx-n_points:idx+n_points]
-
-    peaks, _ = find_peaks(y,  distance = 1000)  
-    #print peaks
-    #print type(y)
-    #print type(y)
-    #plt.plot(y)
-    #plt.plot(peaks, y[peaks], "x")
-    #plt.show()
-    print "Hellllooooo here comes the peak" 
-    print peaks
-    peaks = int(round(peaks))
-    
-    #print "X position of peak in nm"
-    peak_x_position = int(round(x[peaks]))
-    #print peak_x_position
-    #print "x position of peak in int of small cut out area"
-    #print peaks
-    
-    #print "Number of elements in array"
-    #print len(y)
-    #print len(y_all)
-
-    print "Make it easy, just give backe x value of the peak and search for it later" 
-    x_value = x[peaks]
-    print x_value
-
-    #y_out = y[(peaks-n_points):(peaks+n_points)]
-    #x_out = x[(peaks-n_points):(peaks+n_points)]
-    #plt.plot(y_out)
-    #plt.plot(x_out)
-    #plt.show()
-    return peak_x_position, x_value
-
-def Gauss(x, a, x0, sigma):
-    return a * np.exp(-(x - x0)**2 / (2 * sigma**2))
-
-def gauss_fit(x_data_peak, y_data, x_data, range_idx):
-    #Fits gauss distribution to the segment an gives back maximum value, full half witdh 
-    print "We are in the gauss-fit function" 
-    #print type(y_data)    
-    #print type(x_data)    
-        
-    y_all = np.asarray(y_data)
-    x_all = np.asarray(x_data)
-    peak_idx = (np.abs(x_all - x_data_peak)).argmin()
-    #print peak_idx
-    
-    y = y_all[(peak_idx-range_idx):(peak_idx+range_idx)]
-    x = x_all[(peak_idx-range_idx):(peak_idx+range_idx)]
-
-    
-    mean = np.sum(x * y)* (1. / np.sum(y))
-    print "Mean and sigma of data"
-    print mean
-    sigma = np.sqrt(np.sum(y * (x - mean)**2) / np.sum(y))
-    print sigma
-    
-    popt,pcov = curve_fit(Gauss, x, y, p0=[np.max(y), mean, sigma])
-    print "The fit parameters for the gauss function" 
-    print popt,pcov
-    perr = np.sqrt(np.diag(pcov))
-    print perr
-    gauss_peak_y = popt[0]
-    gauss_peak_x = popt[1]
-    gauss_sigma = popt[2]
-    
-    print gauss_peak_y, gauss_peak_x, gauss_sigma
-    
-    # popt,pcov = curve_fit(Gauss, x, y, p0=[max(y), mean, sigma])
-    fig, ax = plt.subplots(figsize=(10,5))
-    plt.plot(x, y, "b+:", label="data")
-    plt.plot(x, Gauss(x, *popt), "r-", label="fit")
-    plt.legend()
-    plt.title("Fig. 3 - Fit for Time Constant")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Voltage (V)")
-    
-    
-    ax.set_ylim(-3000,3000)
-    
-    
-    #Change to linescan folder for saving statistic plots
-    os.chdir(path_lines)
-    #Save function
-    plt.savefig(name + " " + "Gaussfit" + " " + "_.pdf", format="pdf")
-    #Go back to working directory 
-    os.chdir(path)
-    plt.show() 
-    #####Not ready yet, but somehow like this it should work 
-    
-    #curve_fit(gaus,x,y,p0=[1,mean,sigma])
-    #return gauss_ax, gauss_mean, gauss_sigma
-    return 
-
-
-def plot_line(y_column, x_column, name, path_, plot_min, plot_max, xlabel, ylabel):
-    #make multiplots with one x-axis and several y data
-    print "We are in the statistics multi plot function!"
-    #Making a plot of the statistic values of the evaluated scans
-    fig, ax = plt.subplots(figsize=(10,5))        
-    #determine x-data
-    y = y_column.get_data()  
-    x = x_column
-    #setting color and mark style for graphs
-    ax.plot(x, y, marker = "p", color = "red", label =str(extract_voltage(name)) + " V")
-    #more settings for the plot, color scale over n number of plots with index N in the list
-    #plt.plot(x, y1, marker = "p", color = "r", x,y3, marker = "p", color = "b")
-    #, color = "b" ,x,y3, marker = "p", color = "b"        
-    #Settings for the plot  
-    #Legend      
-    ax.legend(loc = 2, fontsize = 14, fancybox = True, framealpha = 1) 
-    #axis, name, size of numbers
-    ax.set_xlabel(xlabel, fontsize = 14)
-    ax.set_ylabel(ylabel, fontsize = 14)
-    ax.tick_params(axis="x", labelsize=14)
-    ax.tick_params(axis="y", labelsize=14)
-    ax.set_ylim(plot_min, plot_max)
-    #plt.semilogy()
-    #tight layout prevents cutting of during pdf making 
-    plt.tight_layout()
-    #Change to folder for saving statistic plots
-    os.chdir(path_)
-    #Save function
-    plt.savefig(name + "_Linescan.pdf", format="pdf")
-    #Go back to working directory 
-    os.chdir(path)
-    plt.show() 
-    return 
-
-def append_to_linescan_list(df_line, name, daten):
-    #Get gwy object df_line and make it a numpy array to add it to a list, so we can make multiple line plots later on 
-    array = df_line.get_data() 
-    #print "We are in the append line to linescan list function:"
-    daten.append(array)
-    print (type(daten))
-    return daten
-
-def save_line(line, line_x, path_line, path, name, parameter, name_x, name_y):
-    #save line as csv data in the lines folder 
-    print "cheeeeeeeeeeeck"
-    print type(line)
-    print line
-    
-    #determine x-data
-    y = line.get_data()  
-    x = line_x
-    
-    DF = pd.DataFrame()
-    DF[name_x] = x
-    DF[name_y] = y
-    
-    # save the dataframe as a csv file 
-    os.chdir(path_lines)
-    DF.to_csv(name + ".csv") 
-    os.chdir(path)
-    return 
-
-def get_colormap(index, N):
-    #Subfunction to get continuous color rgb-values for a multidata plot  
-    #Define the scale for color from blue (neg for electrones) to red (pos) with N segmentations
-    map = mpl.colors.LinearSegmentedColormap.from_list("custom", [(0,"blue"),(1,"red")], N=N)
-    colorMap = plt.get_cmap(map)
-    colorNorm  = colors.Normalize(vmin=0, vmax=N)
-    scalarMap = cmx.ScalarMappable(norm=colorNorm, cmap=colorMap)
-    #print scalarMap
-    return scalarMap.to_rgba(index)
-
-def zero_check(df, actcon, key):
-    #Get the zero offset and set it zero, as well as the width of the gaussian noise around 0
-    #First make histogram and find maximum y value (here is the 0 current)        
-    y, x = np.histogram(df, bins = 40000)
-    index_of_maximum = np.where(y == y.max())
-    array_y_max = y, x[index_of_maximum]
-    offset = array_y_max[1]
-    print offset
-    count = offset.size
-    if count > 1: 
-        offset = offset[0]
-        print "We have double maximum count value, therefore we are chosing the first one:"
-        print offset 
-    print "Point of Maximum:"
-    print offset
-    #Add or Substrate to whole df 
-    df.add(-offset)
-    df.data_changed()
-    #Make second similar df and make df absolut and fit a half gaussian distribution around it 
-    df_fit = df.duplicate()
-    #print type(df_fit)
-    #df_fit = df_fit.multiply_fields(df_fit, df_fit)
-    #df_fit = 
-    y_fit, x_fit = np.histogram(df_fit, bins = 4000)  
-    #print y_fit, x_fit
-    
-    mean, var = halfnorm.stats(moments="mv")
-    #print mean, var   
-    #Select datafield again, due to duplocate there are now 2 df inside the container 
-    df = actcon[gwy.gwy_app_get_data_key_for_id(key)]
-    gwy.gwy_app_data_browser_select_data_field(actcon, key)
-    return df, offset
-
 def make_histogram(df, name, fname, path_histo, path, factor, plot_max,  plot_min, label, xlabel):
-    #Histogram zwischenfunktionen         
-    xres = df.get_xres()
-    print xres
-    yres = df.get_yres()
-    resolution = yres*xres
-    print "The resolution of the scan is:"
-    print resolution
-    y, x = np.histogram(df, bins = resolution)
-    #multiply the x value with the factor, important for topo scans in nm range 
-    #print "We are in the histogram function, here comes the x value hopefully in nm:"
-    x = x*(10**factor)
-    #Settings for the plot    
-    fig, ax = plt.subplots(figsize=(10,5))    
-    #ax.scatter(x[:-1], y, "-b", label)
-    ax.plot(x[:-1], y, "b", label = name)
-    ax.legend(loc = 1, fancybox = True, framealpha = 1)
+    """Create histogram of data field values.
+    
+    Args:
+        df: Data field to analyze
+        name (str): Display name for legend
+        fname (str): Output filename
+        path_histo (str): Output directory for histograms
+        path (str): Working directory
+        factor (int): Scaling factor for values
+        plot_max/min (float): Plot axis limits
+        label (str): Plot title
+        xlabel (str): X-axis label
+    """
+    # Calculate histogram
+    resolution = df.get_xres() * df.get_yres()
+    y, x = np.histogram(df, bins=resolution)
+    x = x * (10**factor)  # Scale x values
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=(10,5))
+    ax.plot(x[:-1], y, "b", label=name)
+    ax.legend(loc=1, fancybox=True, framealpha=1)
     ax.set_xlabel(xlabel)
     ax.set_ylabel("Count")
     ax.set_xlim(plot_min, plot_max)
     plt.semilogy()
     plt.tight_layout()
-    #before saving change into histo folder
+    
+    # Save plot
     os.chdir(path_histo)
-    #Save function
     plt.savefig(fname.replace(".tiff", "_Histo.pdf"), format="pdf")
-    #Change back to working directory
     os.chdir(path)
-    #plt.show()
     return 
 
 def make_histogram_all(N, dataframes, path_histo, path, factor, plot_max, plot_min, name_ylabel, name_file, list_names):
@@ -1135,98 +645,597 @@ def make_histogram_all(N, dataframes, path_histo, path, factor, plot_max, plot_m
     #plt.show()
     return 
 
-def print_df_NumpyArray(df):
-    array = gwyutils.data_field_data_as_array(df)
-    #gwy.gwy_app_data_browser_get_current(APP_DATA_VIEW)
-    #print array
-    return array
+def make_statistics_plot(df_stat, path_save, x_column, y_column, label):
+    print "We are in the statistics plot function!"
+    #Make a string list of the header of the statistics df to call them in plot
+    names = list(df_stat.columns)
+    #Define the number of plots with the number of elements in y_column
+    n = len(y_column) 
+    print n
+    for i in y_column:
+        print i
+        #indexing the list to get a consistent spread of color change
+        N = y_column.index(i)
+        print N
+        #Making a plot of the statistic values of the evaluated scans
+        fig, ax = plt.subplots(figsize=(5,5))
+        # determine x-data
+        #print df_stat.iloc[:, i]
+        y = df_stat.iloc[:, i]
+        #print x.max
+        #print df_stat.iloc[:, 10]
+        x = df_stat.iloc[:, x_column]
+        #more settings for the plot, color scale over n number of plots with index N in the list
+        ax.plot(x,y, marker = "p", color = get_colormap(N ,n))        
+        #Settings for the plot        
+        ax.legend(loc = "best", fontsize = 14, fancybox = True, framealpha = 1)
+        ax.set_xlabel(names[x_column], fontsize = 14)
+        ax.set_ylabel(names[i], fontsize = 14)
+        #Set axis labeling
+        ax.tick_params(axis="x", labelsize=14)
+        ax.tick_params(axis="y", labelsize=14)
+        #tight layout prevents cutting of during pdf making 
+        plt.tight_layout()
+        os.chdir(path_save)
+        print os.getcwd()
+        plt.savefig(names[i] + label + ".pdf", format="pdf")
+        plt.show() 
+    return  
+
+def make_statistics_plot_multi(df, x_column, y_column1, y_column2, y_column3, 
+                             path_statistics, plot_min, plot_max, label, name):
+    """Create multi-line plot of statistics data.
+    
+    Args:
+        df: Statistics dataframe
+        x_column (int): Column index for x-axis data
+        y_column1/2/3 (int): Column indices for y-axis data
+        path_statistics (str): Output directory
+        plot_min/max (float): Y-axis limits
+        label (str): Y-axis label
+        name (str): Output filename base
+    """
+    fig, ax = plt.subplots(figsize=(10,5))
+    
+    # Plot data series
+    x = df.iloc[:,x_column]
+    for y_col, color in [(y_column1, "red"), 
+                        (y_column2, "blue"),
+                        (y_column3, "black")]:
+        y = df.iloc[:,y_col]
+        ax.plot(x, y, marker="p", color=color, linestyle="None")
+    
+    # Configure plot
+    ax.legend(loc=4, fontsize=14, fancybox=True, framealpha=1)
+    ax.set_xlabel("Voltage ($\it{V}$)", fontsize=14)
+    ax.set_ylabel(label, fontsize=14)
+    ax.tick_params(axis="both", labelsize=14)
+    ax.set_ylim(plot_min, plot_max)
+    plt.tight_layout()
+    
+    # Save plot
+    os.chdir(path_statistics)
+    plt.savefig("{}.pdf".format(name), format="pdf")
+    os.chdir(path)
+    plt.show()
+    return 
+
+##################################################################################################
+########################## Functions for Data Analysis ##########################################
+##################################################################################################
+
+def get_statistic(x, actcon, filename, Name, factor, daten, i, noise, key):
+    """
+    Extract statistical values from a data field and append to statistics list.
+    
+    Args:
+        x: Input data field
+        actcon: Active container
+        filename: Name of file
+        Name: Display name
+        factor: Scaling factor for values
+        daten: List to store statistics
+        i: Current iteration
+        noise: Noise threshold
+        key: Data field key
+        
+    Returns:
+        tuple: (statistics, max, min, sum, intermediate_data, data_field)
+    """
+    # Get basic statistics
+    max_val = x.get_max()
+    stats = x.get_stats()
+    
+    # Extract individual statistics
+    avg, ra, rms, skew, kurtosis = stats
+    min_val = x.get_min()
+    median = x.get_median()
+    sum_val = x.get_sum()
+    surface_area = x.get_surface_area()
+
+    # Select data field
+    df = actcon[gwy.gwy_app_get_data_key_for_id(key)]
+    gwy.gwy_app_data_browser_select_data_field(actcon, key)
+
+    # Scale values by factor (surface area uses different scaling)
+    scaled_vals = [
+        val * (10**factor) for val in 
+        [avg, ra, rms, max_val, min_val, median, sum_val]
+    ]
+    surface_area *= 10**12  # Convert to square micrometers
+    
+    # Round all values to 2 decimal places
+    avg, ra, rms, max_val, min_val, median, sum_val = [
+        round(val, 2) for val in scaled_vals
+    ]
+    skew = round(skew, 2)
+    kurtosis = round(kurtosis, 2)
+    surface_area = round(surface_area, 2)
+
+    # Compile intermediate data
+    intermediate_data = [
+        Name, ra, rms, max_val, min_val, avg, 
+        skew, kurtosis, median, sum_val, surface_area,
+        filename, i
+    ]
+    
+    print("Statistical values for {}:".format(filename))
+    print(intermediate_data)
+    
+    daten.append(intermediate_data)
+    
+    return stats, max_val, min_val, sum_val, intermediate_data, df
+
+def get_line(df, factor, x_start, y_start, x_end, y_end, res):
+    """
+    Extract line profile from data field.
+    
+    Args:
+        df: Input data field
+        factor: Scaling factor
+        x_start, y_start: Starting coordinates
+        x_end, y_end: Ending coordinates
+        res: Resolution of extracted line
+        
+    Returns:
+        tuple: (line_data, x_positions, point_size)
+            - line_data: Extracted line profile
+            - x_positions: Array of x coordinates
+            - point_size: Physical size of each point
+    """
+    # Extract line profile (thickness=5, interpolation=2)
+    df_line = df.get_profile(x_start, y_start, x_end, y_end, res, 5, 2)
+    
+    # Scale values
+    df_line.multiply(10**factor)
+    
+    # Calculate physical dimensions
+    real_size = df_line.get_real()
+    line_res = df_line.get_res()
+    point_size = (10**factor) * (real_size/line_res)
+    
+    print("Physical size per point: {} nm".format(point_size))
+    
+    # Generate x coordinates
+    x_positions = [l * point_size for l in range(line_res)]
+    
+    return df_line, x_positions, point_size
+
+def peak_extraction(i, x_data, y_data, step_size, peak_x_position, startingpoint, width):
+    """
+    Extract peak from line scan data within a specified window.
+    
+    Args:
+        i (int): Iteration index (0 for first scan, >0 for subsequent)
+        x_data (array): X-axis data points
+        y_data (array): Y-axis data points (e.g. current/height values)
+        step_size (float): Physical distance between data points
+        peak_x_position (float): Previous peak position (used if i>0)
+        startingpoint (float): Initial x position to start search (used if i=0)
+        width (float): Width of window to search for peak in physical units
+        
+    Returns:
+        tuple: (peak_x_position, x_value)
+            - peak_x_position (int): Index position of peak
+            - x_value (float): X coordinate of peak
+            
+    Notes:
+        - For first scan (i=0), searches around startingpoint
+        - For subsequent scans, searches around previous peak position
+        - Window width is converted from physical units to array indices
+        - Returns both array index and physical position of peak
+    """
+    # Convert y_data to numpy array and take absolute values
+    y_all = y_data.get_data()    
+    y = np.asarray(y_all)
+    y = np.absolute(y)
+    x = np.asarray(x_data)
+
+    # Convert window width from physical units to number of data points
+    n_points = int(round(width/step_size))
+    print("Number of points in search window: {}".format(n_points))
+    
+    # Extract window of data to search for peak
+    if i == 0:
+        # First scan: center window on startingpoint
+        idx = (np.abs(x-startingpoint)).argmin()
+        x = x[idx-n_points:idx+n_points]
+        y = y[idx-n_points:idx+n_points]
+    else:
+        # Subsequent scans: center window on previous peak
+        startingpoint = x[peak_x_position] 
+        idx = (np.abs(x-startingpoint)).argmin()
+        x = x[idx-n_points:idx+n_points]
+        y = y[idx-n_points:idx+n_points]
+
+    # Find peaks in the windowed data
+    peaks, _ = find_peaks(y, distance=1000)  
+    peaks = int(round(peaks))
+    
+    # Convert peak position to full array index and get physical x value
+    peak_x_position = int(round(x[peaks]))
+    x_value = x[peaks]
+
+    return peak_x_position, x_value
+
+def Gauss(x, a, x0, sigma):
+    """
+    Gaussian function for curve fitting.
+    
+    Args:
+        x (array): X values to evaluate function at
+        a (float): Amplitude
+        x0 (float): Center position
+        sigma (float): Standard deviation
+        
+    Returns:
+        array: Gaussian values evaluated at x positions
+    """
+    return a * np.exp(-(x - x0)**2 / (2 * sigma**2))
+
+def gauss_fit(x_data_peak, y_data, x_data, range_idx):
+    """
+    Fit a Gaussian curve to data around a peak position.
+    
+    Args:
+        x_data_peak (float): X position of peak to fit around
+        y_data (array): Full Y-axis data
+        x_data (array): Full X-axis data
+        range_idx (int): Number of points to include on each side of peak
+        
+    Returns:
+        None: Currently just plots and saves the fit
+        
+    Notes:
+        - Extracts window of data centered on peak position
+        - Calculates initial guess parameters from data
+        - Fits Gaussian using scipy.optimize.curve_fit
+        - Plots and saves the fit results
+    """
+    # Convert data to numpy arrays
+    y_all = np.asarray(y_data)
+    x_all = np.asarray(x_data)
+    
+    # Find array index closest to peak position
+    peak_idx = (np.abs(x_all - x_data_peak)).argmin()
+    
+    # Extract window of data around peak
+    y = y_all[(peak_idx-range_idx):(peak_idx+range_idx)]
+    x = x_all[(peak_idx-range_idx):(peak_idx+range_idx)]
+
+    # Calculate initial guess parameters
+    mean = np.sum(x * y) * (1. / np.sum(y))
+    sigma = np.sqrt(np.sum(y * (x - mean)**2) / np.sum(y))
+    
+    # Fit Gaussian curve
+    popt, pcov = curve_fit(Gauss, x, y, p0=[np.max(y), mean, sigma])
+    perr = np.sqrt(np.diag(pcov))
+    
+    # Extract fit parameters
+    gauss_peak_y = popt[0]  # Amplitude
+    gauss_peak_x = popt[1]  # Center position
+    gauss_sigma = popt[2]   # Standard deviation
+    
+    # Plot results
+    fig, ax = plt.subplots(figsize=(10,5))
+    plt.plot(x, y, "b+:", label="data")
+    plt.plot(x, Gauss(x, *popt), "r-", label="fit")
+    plt.legend()
+    plt.title("Gaussian Fit to Peak")
+    plt.xlabel("Position (nm)")
+    plt.ylabel("Signal")
+    ax.set_ylim(-3000, 3000)
+    
+    # Save plot
+    os.chdir(path_lines)
+    plt.savefig("{}_Gaussfit.pdf".format(name), format="pdf")
+    os.chdir(path)
+    plt.show()
+
+    return  "The fit parameters for the gauss function: popt, pcov" , popt ,pcov
+
+
+##################################################################################################
+########################## Functions for Drift Analysis ##########################################
+##################################################################################################
 
 def get_drift(x, old_array, i):
-    #Subfunktion to convolute two consecutive dataframes to find the drift 
-    #function makes dataframes an array and saves df from the loop bevore as
-    #old-array and compares them therefore
-    #print "We are in the get drift function"
+    """
+    Calculate drift between consecutive AFM images using FFT convolution.
+    
+    Args:
+        x: Current image datafield
+        old_array: Previous image array (or None for first image)
+        i: Current iteration index
+        
+    Returns:
+        tuple: (array_for_next_iteration, drift_vector)
+            - array_for_next_iteration: Current image as numpy array
+            - drift_vector: (x,y) tuple of drift in pixels
+            
+    Notes:
+        Uses FFT convolution to find the offset between consecutive images.
+        For first image (i=0), establishes baseline and returns zero drift.
+        For subsequent images, calculates drift relative to previous image.
+    """
     #print "The start position is the half of the resolution (middle of image)"
     start_position = ((x.get_xres() / 2), (x.get_yres() / 2))
     
     if i == 0:
-        #print "Firsttime, therefore print out array of first image:"
-        old_array = print_df_NumpyArray(x) 
+        # First image - establish baseline
+        old_array = print_df_NumpyArray(x)
+        # Self-convolve to get reference correlation
         corr_img = scipy.signal.fftconvolve(old_array, old_array[::-1,::-1], mode="same")
-        #print corr_img
+        # Find correlation peak
         start_position = np.unravel_index(np.argmax(corr_img), corr_img.shape)
-        #print start_position
-        #print type(start_position)
-        drift = (0, 0)
-        #print old_array
-        return old_array, drift
-    #have to give start_position and star-array back to make them global variables 
+        return old_array, (0, 0)
     
     else:
-        #Also irgendwie muss man das so machen, das man das erste bild mit sich selbst convoluted und der unterschied zwischen dem        
-        #punkt und dem punkt wenn ich das naechste mal zwei unterschiedliche mit sich convolute
-        #dieser unterschied gibt mir den drift zwischen image 1 und 2 an 
+        # Convert current image to array
         array_new = print_df_NumpyArray(x)
-        #print "Here you get the convolution image as arrays:"
-        #print type(array_new)
-        #here the magic happens, we use the fastfouriertransformation to convolute
-        #the two images and get an convolution image which we search for the 
-        #highest/brightest point 
+        
+        # Cross-correlate with previous image using FFT convolution
         corr_img = scipy.signal.fftconvolve(old_array, array_new[::-1,::-1], mode="same")
-        #print corr_img
+        
+        # Find correlation peak position
         position = np.unravel_index(np.argmax(corr_img), corr_img.shape)
-        #print "Position of overlay center of first image with the following images:"
-        #print position
-        drift = start_position[0] - (position[0]), start_position[1] - (position[1])
-        #print "Offset/drif of image from the image before (x/y):"
-        #print drift
-        #Here we return the data which is beeing treated right now as array_old (even though its been declared as array_new) 
-        #so we can use it in the next round as array_old
+        
+        # Calculate drift as difference from start position
+        drift = (
+            start_position[0] - position[0],
+            start_position[1] - position[1]
+        )
+        
         return array_new, drift
     
 def get_offset_from_first_image(drift, offset, i):
-    #Function to find the total offset from the first image in stack, normal 
-    #iteration addition over i-loop 
+    """
+    Calculate cumulative offset from first image in series.
     
-    if i == 0: 
-        #print "Type of offset and offset:"
-        #print offset 
-        #print type(offset) 
-        return offset 
+    Args:
+        drift: Current (x,y) drift vector
+        offset: Previous cumulative offset
+        i: Current iteration index
         
-    else: 
-        new_offset = ((offset[0] + drift[0]), (offset[1] + drift[1]))
-        print "For iteration > 0 the offset from the image before"
-        print new_offset
-        return new_offset   
+    Returns:
+        tuple: Updated cumulative (x,y) offset from first image
+        
+    Notes:
+        For i=0, returns initial offset.
+        For i>0, adds current drift to previous offset.
+    """
+    if i == 0:
+        return offset
+        
+    else:
+        new_offset = (
+            offset[0] + drift[0],
+            offset[1] + drift[1]
+        )
+        print("For iteration > 0 the offset from the image before:", new_offset)
+        return new_offset
+
+def make_drift_list(drift, offset_by_drift, i, dlist, path, path_statistics, dataframes, name):
+    """
+    Record drift measurements and save to CSV file.
     
-def make_drift_list(drift,offset_by_drift,i,dlist, path, path_statistics, dataframes, name):
-    #Listing these calculated values into a list with header
-    zwischendaten = i, offset_by_drift[0],offset_by_drift[1], drift[0],drift[1]
-    dlist.append(zwischendaten)
-    #For last run, make header and safe it as csv in statistics folgder 
+    Args:
+        drift: Current (x,y) drift vector
+        offset_by_drift: Cumulative (x,y) offset from first image
+        i: Current iteration index
+        dlist: List to store drift measurements
+        path: Working directory path
+        path_statistics: Statistics output directory path
+        dataframes: List of image dataframes
+        name: Output filename
+        
+    Returns:
+        list: Updated drift measurements list
+        
+    Notes:
+        Saves drift data as CSV with columns:
+        - Iteration
+        - X/Y offset from first image
+        - X/Y drift from previous image
+    """
+    # Add current measurements to list
+    current_data = (i, offset_by_drift[0], offset_by_drift[1], drift[0], drift[1])
+    dlist.append(current_data)
+    
+    # Save data on all but last iteration
     if i != len(dataframes) - 1:
         os.chdir(path_statistics)
-        print("Save drift data....")    
+        print("Saving drift data...")
+        
         try:
-            d = open(name, "w")
-        except:
-            print("Dateizugriff nicht erfolgreich")
+            with open(name, "w") as d:
+                # Write header
+                d.write("Iteration;X Offset by drift from first image [px];" +
+                       "Y Offset by drift from first image [px];" +
+                       "X Drift from image before [px];" +
+                       "Y Drift from image before [px]\n")
+                
+                # Write data rows
+                for data in dlist:
+                    d.write(";".join(str(x) for x in data) + "\n")
+                    
+        except IOError:
+            print("Failed to access file")
             sys.exit(0)
-        #Saving the data in a csv file
-        d.write("Iteration" + ";" + "X Offset by drift from first image [px]" + ";" + "Y Offset by drift from first image [px]" + ";" + "X Drift from image before [px]" + ";" + "Y Drift from image before [px]" + "\n" )
-        for zwischendaten in dlist:
-            d.write(str(zwischendaten[0]) + ";" + str(zwischendaten[1]) + ";" + str(zwischendaten[2]) + ";" + str(zwischendaten[3]) + ";" + str(zwischendaten[4])+ "\n")
-            #close the just written data an return         
-        d.close()	    
+            
         os.chdir(path)
-        return dlist
+        
     else:
-        print "The drift list so far:"
-        print dlist
-        print 
-        return dlist
+        print("Current drift list:", dlist)
+        
+    return dlist
 
+def get_maximum_drift(df, column_name1, column_name2):
+    """
+    Calculate maximum drift extent in X and Y directions.
+    
+    Args:
+        df: Drift measurements dataframe
+        column_name1: Column name for X drift values
+        column_name2: Column name for Y drift values
+        
+    Returns:
+        tuple: (max_x_drift, max_y_drift)
+            Maximum absolute drift values in each direction
+            
+    Notes:
+        Compares positive and negative drift extremes to find
+        the largest magnitude in each direction.
+    """
+    # Get X drift values and find maximum magnitude
+    x_drifts = df[column_name1]
+    max_x = x_drifts.max()
+    min_x = abs(x_drifts.min())
+    total_drift_x = max_x if max_x >= min_x else -min_x
+    
+    # Get Y drift values and find maximum magnitude  
+    y_drifts = df[column_name2]
+    max_y = y_drifts.max()
+    min_y = abs(y_drifts.min())
+    total_drift_y = max_y if max_y >= min_y else -min_y
+    
+    return total_drift_x, total_drift_y
+
+##################################################################################################
+########################## Helper Functions ####################################################
+##################################################################################################
+
+def extract_voltage(string):
+    """
+    Extract voltage value from a filename string that contains '_V' pattern.
+    
+    Args:
+        string (str): Filename containing voltage information (e.g. 'scan_2.5V_001.dat')
+        
+    Returns:
+        float: Extracted voltage value, or None if no voltage found
+        
+    Example:
+        >>> extract_voltage('scan_2.5V_001.dat')
+        2.5
+    """
+    for element in string.split("_"):
+        # Look for elements containing both 'V' and '.' (e.g. '2.5V')
+        if "V" in element and "." in element:
+            return float(element.replace("V",""))
+    return None
+
+def extract_time(string):
+    """
+    Extract timestamp from a filename string that contains timestamp pattern.
+    
+    Args:
+        string (str): Filename containing timestamp (e.g. 'scan_2.5V_20230401_001234.dat')
+        
+    Returns:
+        str: Extracted timestamp string, or None if no timestamp found
+        
+    Example:
+        >>> extract_time('scan_2.5V_20230401_001234.dat') 
+        '20230401_001234'
+    """
+    for element in string.split("_"):
+        # Look for elements starting with '00' and containing '.' 
+        # This pattern matches typical timestamp formats
+        if "00" in element and "." in element:
+            return str(element)
+    return None
+
+def get_time(list_of_filenames):
+    """
+    Extract timestamps from a list of filenames and return sorted list.
+    
+    Args:
+        list_of_filenames (list): List of filenames containing timestamps
+        
+    Returns:
+        list: List of extracted timestamps (first 9 chars only)
+        
+    Example:
+        >>> get_time(['scan_001_20230401.dat', 'scan_002_20230402.dat'])
+        ['20230401', '20230402']
+    """
+    # Sort filenames by timestamp
+    sorted(list_of_filenames, key=extract_time)
+    list_TIME = []
+    
+    for filename in list_of_filenames:
+        ending = extract_time(filename)
+        if ending:
+            # Take first 9 chars of timestamp
+            timestamp = ending[0:9]
+            list_TIME.append(timestamp)
+    
+    return list_TIME
+
+def get_colormap(index, N):
+    """
+    Generate a color from blue->red colormap based on index position.
+    
+    Args:
+        index (int): Current index position
+        N (int): Total number of colors needed
+        
+    Returns:
+        tuple: RGBA color values
+        
+    Notes:
+        Creates a continuous color gradient from blue (negative/electrons) 
+        to red (positive) with N segments.
+    """
+    # Create custom colormap from blue to red
+    colormap = mpl.colors.LinearSegmentedColormap.from_list(
+        "custom", 
+        [(0,"blue"), (1,"red")], 
+        N=N
+    )
+    
+    # Set up normalization and mapping
+    color_norm = colors.Normalize(vmin=0, vmax=N)
+    scalar_map = cmx.ScalarMappable(norm=color_norm, cmap=colormap)
+    
+    return scalar_map.to_rgba(index)
+
+def print_df_NumpyArray(df):
+    """
+    Convert a Gwyddion DataField object to a numpy array.
+    
+    Args:
+        df: Gwyddion DataField object
+        
+    Returns:
+        numpy.ndarray: Array containing the DataField values
+    """
+    return gwyutils.data_field_data_as_array(df)
+
+##################################################################################################
+########################## Pipeline Functions #################################################
+##################################################################################################
 
 def first_run_topo(voltage_list, lines_cutoff, fnames_topo, factor, daten):
     #First run makes: Extraction of DF from Actcon, Edges, Color, Fit, Statistics  
@@ -1381,22 +1390,8 @@ def fourth_run_topo(dataframes_topo, range_topo, path_stableframe, array_old2, o
         remove(actcon)
 
     df_drift3 = load_statistics_data(path_statistics, name = "Drift_List3.csv")    
-    dataframes_topo = dataframes_topo[:(i+1)]
-    
-
-    
+    dataframes_topo = dataframes_topo[:(i+1)]    
     return df_drift, dataframes_topo[:(i+1)]
-
-
-def make_videos(dataframes_topo, Range, path_stableframe, path_gifs):
-    #make gifs, cut out stable frame 
-    #make_gif(path_stableframe, time = 2, name = "Topography")
-    make_gif(path_pdfs, time = 2, name = "Current")
-    make_gif(path_pdfs, time = 2, name = "Topography")    
-    make_gif(path_histo, time = 2, name = "Topography")
-    make_gif(path_histo, time = 2, name = "Current")
-
-    return
 
 def first_run_current(voltage_list, lines_cutoff, fnames_current, factor, daten):
     #First run for current files makes: Extraction of DF from Actcon, Edges, Color, ZeroCheck, Statistics, Save after Fitting  
@@ -1476,7 +1471,6 @@ def third_run_current(dataframes, Range, path_fitted, path_stableframe, df_drift
         actcon = data_save(actcon, fname, path_saving = path_stableframe, path_working = path)
     return
 
-
 def first_run_error(voltage_list, lines_cutoff, fnames_error, factor = 0, daten = statistics_error):
     #Evaluation of all error files 
     for i in range(len(fnames_error)):
@@ -1524,56 +1518,86 @@ def second_run_error(dataframes_error, range_error, path, factor, key=0):
     make_statistics_plot_multi(df_stat_error, 1, 4 ,6 ,5 , path_statistics, plot_max = (range_error/2), plot_min = -range_error/2, label="Error ($\it{V}$)", name = "Error_MultiPlot")
     return
 
-###############################################################################
-    ### Presets: Make path, Sort files, Get Infos ... 
-###############################################################################
-  
-path = working_path()
-N, fnames_topo, fnames_current, fnames_amp, fnames_phase, fnames_error = sortandlist(path) 
-voltage_list, lines_cutoff = get_info_sheet(path, name = "Infos.csv")
-path_pdfs, path_histo, path_statistics, path_gifs, path_jpgs, path_lines, path_fitted, path_stableframe = make_folders(path)
+def assemble(n, topo, error, current, amp, phase, time_list, path_new):
+    """
+    Assemble multiple scan types into combined .gwy files.
+    
+    Args:
+        n (int): Number of scans
+        topo (list): Topography scan files
+        error (list): Error scan files  
+        current (list): Current scan files
+        amp (list): Amplitude scan files
+        phase (list): Phase scan files
+        time_list (list): Timestamps for each scan
+        path_new (str): Output directory path
+    """
+    # Sort files by timestamp
+    sorted(topo, key=extract_time)
+    sorted(error, key=extract_time)
+    sorted(current, key=extract_time)
+    sorted(amp, key=extract_time)
+    sorted(phase, key=extract_time)
 
-###############################################################################
-    ### Interatcion settings ...  
-###############################################################################
+    for i in range(len(topo)):
+        print('Iteration run: i=')
+        print(i)
+        
+        # Load topography data
+        TOPO = topo[i]
+        ids_topo, actcon_topo = load_data(path, TOPO)
+        df_topo, name_topo = select_dataframe(actcon_topo, ids_topo[0])
+        
+        # Get output filename from timestamp
+        name = time_list[i]
+        print(name)
+        
+        # Add error data if available
+        if len(error) == 0:
+            print('The Error list is empty')
+        else:
+            ERROR = error[i]
+            ids_error, actcon_error = load_data(path, ERROR)
+            df_error, name_error = select_dataframe(actcon_error, ids_error[0])
+            id_error = gwy.gwy_app_data_browser_add_data_field(df_error, actcon_topo, 1)
+            actcon_topo['/' + str(id_error) +'/data/title'] = 'Error'
+            remove(actcon_error)
+       
+        # Add current data if available
+        if len(current) == 0:
+            print('The current list is empty')
+        else:
+            CURRENT = current[i]
+            ids_current, actcon_current = load_data(path, CURRENT)
+            df_current, name_current = select_dataframe(actcon_current, ids_current[0])
+            id_current = gwy.gwy_app_data_browser_add_data_field(df_current, actcon_topo, 2)
+            actcon_topo['/' + str(id_current) +'/data/title'] = 'Current'
+            remove(actcon_current)
+                        
+        # Add amplitude data if available
+        if len(amp) == 0:
+            print('The Amplitude list is empty')
+        else:
+            AMP = amp[i]
+            ids_amp, actcon_amp = load_data(path, AMP)
+            df_amp, name_amp = select_dataframe(actcon_amp, ids_amp[0])
+            id_amp = gwy.gwy_app_data_browser_add_data_field(df_amp, actcon_topo, 3)
+            actcon_topo['/' + str(id_amp) +'/data/title'] = 'Amplitude'
+            remove(actcon_amp)    
+            
+        # Add phase data if available
+        if len(phase) == 0:
+            print('The Phase list is empty')
+        else:
+            PHASE = phase[i]
+            ids_phase, actcon_phase = load_data(path, PHASE)
+            df_phase, name_phase = select_dataframe(actcon_phase, ids_phase[0])
+            id_phase = gwy.gwy_app_data_browser_add_data_field(df_phase, actcon_topo, 4)
+            actcon_topo['/' + str(id_phase) +'/data/title'] = 'Phase'
+            remove(actcon_phase) 
+            
+        # Save combined file
+        actcon_topo = data_save(actcon_topo, name, path_newData, path)
+        remove(actcon_topo)
 
-image_mode = gwy.RUN_NONINTERACTIVE
-fit_mode = gwy.RUN_NONINTERACTIVE 
-mask_mode = gwy.RUN_NONINTERACTIVE
-
-
-###############################################################################
-    ### First evaluation run: open data, putting in lists, fitting, cutting edges, get statistics, get drift 
-###############################################################################
-
-df_stat_topo, range_topo, dataframes_topo = first_run_topo(voltage_list, lines_cutoff, fnames_topo, factor = 9, daten = statistics_topo)
-df_drift, dataframes_topo, lines_topo = second_run_topo(dataframes_topo, range_topo, path_fitted, array_old, offset_by_drift, factor = 9)
-#third_run_topo(dataframes_topo, range_topo, path_fitted, path_stableframe, df_drift, factor = 9)
-#df_drift2, dataframes_topo = fourth_run_topo(dataframes_topo, range_topo, path_stableframe, array_old2, offset_by_drift, factor = 9)
-
-#print df_drift2.iloc[:,1]
-#print df_drift2.iloc[:,2]
-
-#third_run_topo(dataframes_topo, range_topo, path_stableframe, path_stableframe, df_drift2, factor = 9)
-
-#df_stat_error, range_error, dataframes_error = first_run_error(voltage_list, lines_cutoff, fnames_error, factor = 0, daten = statistics_error)
-#second_run_error(dataframes_error, range_error, path, factor=0)
-
-df_stat_current, range_current, dataframes_current = first_run_current(voltage_list, lines_cutoff, fnames_current, factor = 9, daten = statistics_current)
-dataframes_current = second_run_current(dataframes_current, range_current, path, factor = 9)
-#third_run_current(dataframes_current, range_current, path_fitted, path_stableframe, df_drift, factor = 9)
-
-
-print "cheeeeeeck"
-
-
-#plot_line_multi(df_line_topo_small, df_line_current_small, df_line_x, name, path_lines, plot_min_y1=topo_min + 50, plot_max_y1=topo_max ,plot_min_y2=current_min+5000, plot_max_y2=current_max-5000, xlabel="Distance ($\it{nm}$)", y1label="Topography ($\it{nm}$)", y2label="Current ($\it{nA}$)")
-
-
-make_videos(dataframes_topo, range_topo, path_stableframe, path_gifs)
-
-
-###############################################################################
-    ### First run: fitting, cutting edges, get statistics, get drift 
-###############################################################################
-
+    return
