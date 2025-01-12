@@ -1,46 +1,102 @@
 """
-Writer: 
-Tillmann Stralka 2020.Mai.05
-Owner: 
-HLP University of Leipzig
-About:
-Python version 2.7
-Automatic procession of AFM files.
-Finding, listing, fitfunctions, image making, statistic extraction and plotting 
-Correlation of Current and topographic information, convolution of dynamicscans
+Script Information
+-------------------
+Writer:      Tillmann Stralka
+Date:        2020-05-05
+Owner:       HLP University of Leipzig
+Python Ver.: 2.7
+
+Description:
+This script automates the processing of AFM files, including finding, listing, 
+applying fit functions, generating images, extracting statistics, and plotting. 
+It also correlates current and topographic information and convolves dynamic scans.
+
 """
 
-
-#Some python libs have to be added via PATH since they are near gwyddion
+# -------------------------------
+# System and Gwyddion-specific Configuration
+# -------------------------------
+# Some Python libraries have to be added via PATH since they are near Gwyddion
 import sys
+# Adding paths for Gwyddion and Python 2.7 specific modules
 sys.path.append('/usr/local/opt/python@2/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages')
 sys.path.append('/usr/share/gwyddion/pygwy')
+# Importing pygtk for GUI support (requires GTK-2.0)
 import pygtk
-pygtk.require20() # adds gtk-2.0 folder to sys.path
+pygtk.require20()  # Ensures GTK-2.0 compatibility
+# Adding Gwyddion module paths
 sys.path.append('/usr/local/Cellar/gwyddion/2.52/share/gwyddion/pygwy')
+# Importing Gwyddion utilities and main modules
 import gwyutils
-#Importing all other necessary libraries from the python surounding 
 import gwy
-import os, time
-import numpy
+
+# -------------------------------
+# General Python Standard Libraries
+# -------------------------------
+# System and OS-related utilities
+import os
+import time
+import shutil
+
+# -------------------------------
+# Numerical Computation and Data Analysis Libraries
+# -------------------------------
+# Core numerical library
+import numpy as np
+# Data manipulation and analysis
+import pandas as pd
+
+# -------------------------------
+# Scientific Computing and Signal Processing
+# -------------------------------
+# Statistical distributions
+from scipy.stats import norm, halfnorm
+# Curve fitting
+from scipy.optimize import curve_fit
+# Signal processing utilities
+from scipy.signal import find_peaks
+import scipy.signal  # Importing the full module for extended utilities
+
+# -------------------------------
+# Visualization Libraries
+# -------------------------------
+# Comprehensive plotting library
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import matplotlib as mpl
-import numpy as np
-from scipy.stats import norm
-from scipy.stats import halfnorm
-from scipy.optimize import curve_fit
-from scipy.signal import find_peaks
-import scipy.signal
-import sys 
-import pandas as pd  
-import shutil  
-import cv2 
+
+# -------------------------------
+# Image Processing and File Handling
+# -------------------------------
+# Image I/O and video handling
 import imageio
-from pdf2image.exceptions import (PDFInfoNotInstalledError, PDFPageCountError, PDFSyntaxError)
+
+# -------------------------------
+# PDF Handling Libraries
+# -------------------------------
+# Exception handling for PDF-to-image conversions
+from pdf2image.exceptions import (
+    PDFInfoNotInstalledError,
+    PDFPageCountError,
+    PDFSyntaxError,
+)
+# PDF-to-image conversion utilities
 from pdf2image import convert_from_path, convert_from_bytes
-import glob
+
+# -------------------------------
+# # Local Imports
+# -------------------------------
+# Import utils_afm from the src directory
+src_path = os.path.abspath(os.path.join('src'))
+print("src path:", src_path)
+# Add the src directory to the system path
+sys.path.append(src_path)
+from utils_afm import *
+# Define the path to the 'data' folder in the local repository
+data_path = os.path.abspath(os.path.join(os.getcwd(), 'data'))
+# Define the general working directory / path 
+path = os.path.abspath(os.path.join(os.getcwd()))
 
 
 ###############################################################################

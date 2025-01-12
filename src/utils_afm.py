@@ -1237,66 +1237,126 @@ def print_df_NumpyArray(df):
 ########################## Pipeline Functions #################################################
 ##################################################################################################
 
-def first_run_topo(voltage_list, lines_cutoff, fnames_topo, factor, daten):
-    #First run makes: Extraction of DF from Actcon, Edges, Color, Fit, Statistics  
-    for i in range(len(fnames_topo)):
-        print "First Run Iteration: i="
-        print i 
-        fname = fnames_topo[i]
-        name =  str(voltage_list[i]) + " V" + "_Topo"
-        print name
+def first_run_topo(voltage_list, lines_cutoff, fnames_topo, factor = 9, daten):
+    """
+    Performs the first run of the topography pipeline.
+
+    Steps:
+    1. Extract data from ActCon files and preprocess it.
+    2. Cut edges of the data and apply color selection.
+    3. Fit functions and calculate statistics.
+    4. Save processed DataFrames and compute an overview evaluation.
+
+    Args:
+        voltage_list (list): List of voltages corresponding to each file.
+        lines_cutoff (int): Number of lines to cut off from the data.
+        fnames_topo (list): List of file names to process.
+        factor (int): Scaling factor for data adjustment.
+        daten (list): Metadata associated with the dataset.
+
+    Returns:
+        tuple: Processed statistical DataFrame, range of topography, and processed DataFrames.
+    """
+    for i, fname in enumerate(fnames_topo):
+        print(f"First Run Iteration: i={i}")
+        name = f"{voltage_list[i]} V_Topo"
+        print(name)
+
         ids, actcon = load_data(path, fname)
-        df = select_dataframe(actcon, parameter_name=name, key = 0)
+        df = select_dataframe(actcon, parameter_name=name, key=0)
         df = cut_edges(df, lines_cutoff)
-        actcon = select_color(actcon, color="Gwyddion.net", key = 0)  
-        actcon = fit_functions(actcon, df, i, mode = fit_mode)  
-        statistics, max, min, Sme, zwischendaten, df =  get_statistic(df, actcon, fname, name, factor, daten, i, noise = 0, key = 0)        
-        df = df_save(df, actcon, dataframes_topo, fname, name, voltage_list[i]) 
-        df = average_check(df, actcon, key = 0)
-        actcon = data_save(actcon, fname, path_saving = path_fitted, path_working = path)         
+        actcon = select_color(actcon, color="Gwyddion.net", key=0)
+        actcon = fit_functions(actcon, df, i, mode=fit_mode)
+        statistics, max_val, min_val, Sme, zwischendaten, df = get_statistic(
+            df, actcon, fname, name, factor, daten, i, noise=0, key=0
+        )
+        df = df_save(df, actcon, dataframes_topo, fname, name, voltage_list[i])
+        df = average_check(df, actcon, key=0)
+        actcon = data_save(actcon, fname, path_saving=path_fitted, path_working=path)
         remove(actcon)
-    #After first run overview evaluation and collection of values for image making and so on            
+
+    # Perform overview evaluation and save statistical data
     SaveStatisticsToFile(daten, path_statistics, voltage_list, name="Statistics_Topo.csv", unit="nm")
-    df_stat_topo = load_statistics_data(path_statistics, name = "Statistics_Topo.csv")
-    range_topo = get_opimum_range_topo(df_stat_topo, column_name = "Maximum [nm]")
-    make_histogram_all(N, dataframes_topo, path_histo, path, factor, plot_max = range_topo, plot_min = -range_topo, name_ylabel="Topography ($\it{nm}$)", name_file="Topo_Histogramms.pdf", list_names = voltage_list)
-    
-    #the df lists consit of name and gwy objects 
+    df_stat_topo = load_statistics_data(path_statistics, name="Statistics_Topo.csv")
+    range_topo = get_opimum_range_topo(df_stat_topo, column_name="Maximum [nm]")
+
+    # Create histograms for topography data
+    make_histogram_all(
+        N,
+        dataframes_topo,
+        path_histo,
+        path,
+        factor,
+        plot_max=range_topo,
+        plot_min=-range_topo,
+        name_ylabel="Topography ($\it{nm}$)",
+        name_file="Topo_Histogramms.pdf",
+        list_names=voltage_list,
+    )
     return df_stat_topo, range_topo, dataframes_topo
 
-def second_run_topo(dataframes_topo, range_topo, path_fitted, array_old, offset_by_drift, factor):
-    #Second run makes: average on 0, make and save: images-videos-histograms, convolution to get drift  
-    #Set array_old for beginning, since its used by drift extraction function, will be overwritten in loop and reused
-    #Make empty drift list (local) to fill in iteration loop
+
+def second_run_topo(dataframes_topo, range_topo, path_fitted, array_old, offset_by_drift, factor = 9):
+    """
+    Performs the second run of the topography pipeline.
+
+    Steps:
+    1. Reprocess DataFrames with drift extraction.
+    2. Generate and save images, videos, and histograms.
+    3. Convolve the data to extract drift.
+
+    Args:
+        dataframes_topo (list): List of processed DataFrames from the first run.
+        range_topo (float): Topography range for processing.
+        path_fitted (str): Path to the fitted data.
+        array_old (numpy.array): Initial array for drift extraction.
+        offset_by_drift (tuple): Offset values to adjust drift.
+        factor (int): Scaling factor for data adjustment.
+
+    Returns:
+        tuple: Updated drift DataFrame, processed DataFrames, and line scan data.
+    """
     drift_list = []
-    for i in range(len(dataframes_topo)):
-        print "Second Run Topo Iteration: i="
-        print i 
-        name, voltage, df, actcon, fname = dataframes_topo[i]
+
+    for i, data in enumerate(dataframes_topo):
+        print(f"Second Run Topo Iteration: i={i}")
+        name, voltage, df, actcon, fname = data
         ids, actcon = load_data(path_fitted, fname + ".gwy")
 
-        df = average_check(df, actcon, key = 0)
-        #actcon = select_range(actcon, range_topo*(10**-factor), key=0)
-        actcon = image_save(actcon, i, path_pdfs, path, mode = image_mode, dataname= fname)
-        
-        df_line_topo, df_line_x, step_size = get_line(df, factor, x_start=line_x_start, y_start=line_y_start, x_end=line_x_end, y_end=line_y_end, res=line_res) 
-        plot_line(df_line_topo, df_line_x, name, path_lines, plot_min=-range_topo, plot_max=range_topo, xlabel="Distance ($\it{nm}$)", ylabel="Topo ($\it{nm}$)")  
-        data_lines_topo = append_to_linescan_list(df_line_topo, name, daten=datalines_topo)
+        df = average_check(df, actcon, key=0)
+        actcon = image_save(actcon, i, path_pdfs, path, mode=image_mode, dataname=fname)
 
-        
-        #make_histogram(df, name, fname, path_histo, path, factor, plot_max = range_topo, plot_min = -range_topo, label="Topo distribution", xlabel="Topography ($\it{nm}$)")
-        ##########  Convolve    ##########
+        df_line_topo, df_line_x, step_size = get_line(
+            df, factor, x_start=line_x_start, y_start=line_y_start, 
+            x_end=line_x_end, y_end=line_y_end, res=line_res
+        )
+        plot_line(
+            df_line_topo, df_line_x, name, path_lines, 
+            plot_min=-range_topo, plot_max=range_topo, 
+            xlabel="Distance ($\it{nm}$)", ylabel="Topo ($\it{nm}$)"
+        )
+        append_to_linescan_list(df_line_topo, name, daten=datalines_topo)
+
         array_old, drift = get_drift(df, array_old, i)
         offset_by_drift = get_offset_from_first_image(drift, offset_by_drift, i)
-        drift_list = make_drift_list(drift,offset_by_drift,i,drift_list, path, path_statistics, dataframes = dataframes_topo, name="Drift_List.csv")
-        df = df_save(df, actcon, dataframes_topo, fname, name, voltage_list[i]) 
+        drift_list = make_drift_list(
+            drift, offset_by_drift, i, drift_list, path, path_statistics, 
+            dataframes=dataframes_topo, name="Drift_List.csv"
+        )
+        df = df_save(df, actcon, dataframes_topo, fname, name, voltage_list[i])
         remove(actcon)
 
-    df_drift = load_statistics_data(path_statistics, name = "Drift_List.csv")
-    df_stat_topo = load_statistics_data(path_statistics, name = "Statistics_Topo.csv")
-    make_statistics_plot_multi(df_stat_topo, 1, 4 ,6 ,5 , path_statistics, plot_max = (2*range_topo), plot_min = 0, label="Height ($\it{nm}$)", name = "Topo_MultiPlot")    
-    make_statistics_plot(df_stat_topo, path_statistics, 13, [2, 3, 4,5,6], label="Topo")
-    return df_drift, dataframes_topo[:(i+1)], data_lines_topo 
+    df_drift = load_statistics_data(path_statistics, name="Drift_List.csv")
+    df_stat_topo = load_statistics_data(path_statistics, name="Statistics_Topo.csv")
+    make_statistics_plot_multi(
+        df_stat_topo, 1, 4, 6, 5, path_statistics, 
+        plot_max=(2 * range_topo), plot_min=0, 
+        label="Height ($\it{nm}$)", name="Topo_MultiPlot"
+    )
+    make_statistics_plot(
+        df_stat_topo, path_statistics, 13, [2, 3, 4, 5, 6], label="Topo"
+    )
+    return df_drift, dataframes_topo[:i + 1], datalines_topo
 
 def third_run_topo(dataframes_topo, Range, path_fitted, path_stableframe, df_drift, factor = 9):
     #Here we extract from the fittted files a stable frame with the drift list
@@ -1392,6 +1452,23 @@ def fourth_run_topo(dataframes_topo, range_topo, path_stableframe, array_old2, o
     df_drift3 = load_statistics_data(path_statistics, name = "Drift_List3.csv")    
     dataframes_topo = dataframes_topo[:(i+1)]    
     return df_drift, dataframes_topo[:(i+1)]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def first_run_current(voltage_list, lines_cutoff, fnames_current, factor, daten):
     #First run for current files makes: Extraction of DF from Actcon, Edges, Color, ZeroCheck, Statistics, Save after Fitting  

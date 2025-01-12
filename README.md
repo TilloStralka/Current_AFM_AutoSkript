@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CCurrent AFM AutoSkript
 
 ## Overview
@@ -31,6 +30,35 @@ The script was created as part of Tillmann Stralka's doctoral thesis. Please ref
 
 ## How to Run the Project
 
+==============================
+
+## **4. Installation**
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/TilloStralka/Current_AFM_AutoSkript.git
+    cd CO2_Emission_Predictor
+    ```
+
+2. Create a virtual environment and activate it:
+    ```bash
+    python -m venv env
+    source env/bin/activate  # On Windows: env\Scripts\activate
+    ```
+
+3. Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4. Run the main analysis program:
+    ```bash
+    python Current_Auto.py
+    ```
+==============================
+
+
+
+
+
 1. Clone the repository:
     ```bash
     git clone https://github.com/TilloStralka/Current_AFM_AutoSkript.git
@@ -47,7 +75,6 @@ The script was created as part of Tillmann Stralka's doctoral thesis. Please ref
 ## Data
 
 The data is was collected by the author in the lab and is  **not included in the repository** due to size and privacy constraints. 
-=======
 # Current_AFM_AutoSkript
 Python script for autonomous Current AFM scans evaluation. It will treat a number of scans simultaneously and correlate topographic and current data and make a statistic evaluation of the whole stack of images. 
 
@@ -78,4 +105,41 @@ Chapter 5.5 The deployed code and evaluation approach
 <img width="489" alt="DataProcessing" src="https://github.com/user-attachments/assets/03cb276f-c5f9-4c4b-a7db-3a7f71e7abc1">
 
 
->>>>>>> origin/main
+Project Organization
+------------
+
+    ├── LICENSE
+    ├── README.md          <- The top-level README for developers using this project.
+    ├── data               <- Should be in your computer but not on Github (only in .gitignore)
+    │   ├── processed      <- The final, canonical data sets for modeling.
+    │   └── raw            <- The original, immutable data dump.
+    │
+    ├── models             <- Trained and serialized models, model predictions, or model summaries
+    │
+    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
+    │                         the creator's name, and a short `-` delimited description, e.g.
+    │                         `1.0-alban-data-exploration`.
+    │
+    ├── references         <- Data dictionaries, manuals, links, and all other explanatory materials.
+    │
+    ├── reports            <- The reports that you'll make during this project as PDF
+    │   └── figures        <- Generated graphics and figures to be used in reporting
+    │
+    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
+    │                         generated with `pip freeze > requirements.txt`
+    │
+    ├── src                <- Source code for use in this project.
+    │   ├── __init__.py    <- Makes src a Python module
+    │   │
+    │   ├── features       <- Scripts to turn raw data into features for modeling
+    │   │   └── build_features.py
+    │   │
+    │   ├── models         <- Scripts to train models and then use trained models to make
+    │   │   │                 predictions
+    │   │   ├── predict_model.py
+    │   │   └── train_model.py
+    │   │
+    │   ├── visualization  <- Scripts to create exploratory and results oriented visualizations
+    │   │   └── visualize.py
+
+--------
