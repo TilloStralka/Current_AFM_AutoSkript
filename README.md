@@ -79,11 +79,11 @@ It is recommended to work with a venv, since this project works with the outdate
     │
     ├── src                <- Source code for this project.
     │   ├── __init__.py    <- Makes src a Python module.
-    │   └── utils_afm.py   <- This contains all the separate defined functions 
-    │                         which are deployed in the main file: Current_Auto.py.
+    │   └── utils_afm.py   <- This contains all the separate defined functions which are deployed 
+    │                         in the main file: Current_Auto.py.
     │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`                          
+    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, 
+    │                         e.g.generated with `pip freeze > requirements.txt`                          
     │
     ├── Fitted             <- The fitted files (adapted topography and current) are saved here as .gwy files.
     │
@@ -104,6 +104,7 @@ It is recommended to work with a venv, since this project works with the outdate
     │
     ├── Statistics         <- Here lies the csv files which contain all statistic values for topography, and
     │                         current and furthermore. 
+
 --------
 
 ==============================
