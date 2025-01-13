@@ -1,4 +1,4 @@
-# CCurrent AFM AutoSkript
+# Current AFM automatic evaluationd and correlation skript
 
 ## Overview
 
@@ -6,7 +6,7 @@ Python script for autonomous Current AFM scans evaluation. It will treat a numbe
 
 """ Writer: Tillmann Stralka 2020.Mai.05 Owner: HLP University of Leipzig About: Python version 2.7 Automatic procession of AFM files. Finding, listing, fitfunctions, image making, statistic extraction and plotting Correlation of Current and topographic information, convolution of dynamicscans """
 
-The script was created as part of Tillmann Stralka's doctoral thesis. Please refer to it for further questions and information: "Electrical Atomic Force Microscopy Applied on Copper Iodide Thin Films and Crystals - 17.06.2024 - Tillmann Stralka"
+The script was created as part of Tillmann Stralka's doctoral thesis. Please refer to it for further questions and information: "Electrical Atomic Force Microscopy Applied on Copper Iodide Thin Films and Crystals - 17.06.2024 - Tillmann Stralka" [Dissertation](https://nbn-resolving.org/urn:nbn:de:bsz:15-qucosa2-927428)
 
 
 ## **1. How to Run the Project**
@@ -39,7 +39,7 @@ It is recommended to work with a venv, since this project works with the outdate
     The Gwyddion software API will be used to perform specific functions in the script. This script is written for **Gwyddion version 3.52**. 
     You can download the software and find additional information here: [Gwyddion Download Page](https://gwyddion.net/download/).
 
-    Steps to Set Up Gwyddion
+    **Steps to Set Up Gwyddion:**
     a) Locate the Installation Path:
     After installing Gwyddion, identify the location of the `pygwy` library on your system. Typically, this is located in a directory such as:  `/usr/share/gwyddion/pygwy`
 
@@ -75,37 +75,46 @@ It is recommended to work with a venv, since this project works with the outdate
     │                         `1.0-alban-data-exploration`. (Non yet, because this runs on python 2.7)
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
+    │                         generated with `pip freeze > requirements.txt`           
+    │
+    ├── src                <- Source code for this project.
+    │   ├── __init__.py    <- Makes src a Python module.
+    │   └── utils_afm.py   <- This contains all the separate defined functions 
+    │                         which are deployed in the main file: Current_Auto.py.
+    │
+    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`                          
     │
-    ├── src                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes src a Python module
-    │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
-    │   │   └── build_features.py
-    │   │
-    │   ├── models         <- Scripts to train models and then use trained models to make
-    │   │   │                 predictions
-    │   │   ├── predict_model.py
-    │   │   └── train_model.py
-    │   │
-    │   ├── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │   │   └── visualize.py
-
+    ├── Fitted             <- The fitted files (adapted topography and current) are saved here as .gwy files.
+    │
+    ├── Histograms         <- Here the histograms of the distributions of the scans will be stored.
+    │
+    ├── JPGs               <- Here the scans will be saved as JPGs, which are required for the gif 
+    │                         making process. 
+    │
+    ├── Linescans          <- Here the Linescans are saved (the plots as well as the txt files containing
+    │                         distance over measurement, which could be height or current intensity) 
+    │
+    ├── PDFs               <- Here the final images of the scan are saved as PDF formats.
+    │
+    ├── gifs               <- Here the created videos/gifs of the scan sequences are saved. 
 --------
 
-
-
+==============================
 
 ## **2. Data**
 
+==============================
+
 The data is was collected by the author in the lab and is  **not included in the repository** due to size and privacy constraints. 
-# Current_AFM_AutoSkript
-Python script for autonomous Current AFM scans evaluation. It will treat a number of scans simultaneously and correlate topographic and current data and make a statistic evaluation of the whole stack of images. 
+The files should be AFM scans or current AFM scans (I-AFM, cp-AFM, cAFM etc.) of the format gwy containing differnet channels (topography, error signal, laterals force, current, etc.). These channels will be treated separately, correlated and evaluated. Within the data file there should also be a .txt file. Which contains a list of voltages applied, or paramter changes during the scan sequence recording/measuring. For further informations see def get_info_sheet in the utils_afm.py file.
 
+==============================
 
+## **2. Programm Steps**
 
-## **3. Program Steps**
-## Project Steps
+==============================
+
 
 1. **Data Collection**: 
    - Collect data from the path
