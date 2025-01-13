@@ -98,6 +98,12 @@ It is recommended to work with a venv, since this project works with the outdate
     ├── PDFs               <- Here the final images of the scan are saved as PDF formats.
     │
     ├── gifs               <- Here the created videos/gifs of the scan sequences are saved. 
+    │
+    ├── StableFrame        <- Here do lie the cut out images of the unmoved are, which is extracted via
+    │                         convolution. 
+    │
+    ├── Statistics         <- Here lies the csv files which contain all statistic values for topography, and
+    │                         current and furthermore. 
 --------
 
 ==============================
