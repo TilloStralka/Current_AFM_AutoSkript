@@ -171,7 +171,7 @@ fit_mode = gwy.RUN_NONINTERACTIVE    # Set to non-interactive for fitting proces
 mask_mode = gwy.RUN_NONINTERACTIVE   # Set to non-interactive for masking process
 
 ###############################################################################
-#               First Evaluation Run: Data Processing and Analysis           #
+#               Main Evaluation Run: Data Processing and Analysis             #
 ###############################################################################
 
 # First run: Process topological data, fit data, and calculate statistics
