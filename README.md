@@ -78,32 +78,30 @@ It is recommended to work with a venv, since this project works with the outdate
     │                         generated with `pip freeze > requirements.txt`           
     │
     ├── src                <- Source code for this project.
-    │   ├── __init__.py    <- Makes src a Python module.
-    │   └── utils_afm.py   <- This contains all the separate defined functions which are deployed 
-    │                         in the main file: Current_Auto.py.
+    │   ├── __init__.py    <- Makes `src` a Python module.
+    │   └── utils_afm.py   <- Contains all the separate defined functions deployed 
+    │                         in the main file: `Current_Auto.py`.
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, 
-    │                         e.g.generated with `pip freeze > requirements.txt`                          
+    │                         e.g., generated with `pip freeze > requirements.txt`.
     │
-    ├── Fitted             <- The fitted files (adapted topography and current) are saved here as .gwy files.
+    ├── Fitted             <- The fitted files (adapted topography and current) are saved here as .gwy files. 
     │
-    ├── Histograms         <- Here the histograms of the distributions of the scans will be stored.
+    ├── Histograms         <- Histograms of the distributions of the scans are stored here.
     │
-    ├── JPGs               <- Here the scans will be saved as JPGs, which are required for the gif 
-    │                         making process. 
+    ├── JPGs               <- Scans are saved as JPGs, which are required for the GIF-making process.
     │
-    ├── Linescans          <- Here the Linescans are saved (the plots as well as the txt files containing
-    │                         distance over measurement, which could be height or current intensity) 
+    ├── Linescans          <- Contains:
+    │                         - Plots of linescans.
+    │                         - TXT files with distance over measurement data (e.g., height or current intensity).
     │
-    ├── PDFs               <- Here the final images of the scan are saved as PDF formats.
+    ├── PDFs               <- Final images of the scans are saved here in PDF format.
     │
-    ├── gifs               <- Here the created videos/gifs of the scan sequences are saved. 
+    ├── gifs               <- Created videos/GIFs of the scan sequences are saved here.
     │
-    ├── StableFrame        <- Here do lie the cut out images of the unmoved are, which is extracted via
-    │                         convolution. 
+    ├── StableFrame        <- Contains the cut-out images of the unmoved areas, extracted via convolution.
     │
-    ├── Statistics         <- Here lies the csv files which contain all statistic values for topography, and
-    │                         current and furthermore. 
+    ├── Statistics         <- CSV files containing all statistical values for topography, current, and more.
 
 --------
 
