@@ -107,48 +107,113 @@ It is recommended to work with a venv, since this project works with the outdate
 
 ==============================
 
-## **2. Data**
+## **3. Data**
 
 ==============================
 
 The data is was collected by the author in the lab and is  **not included in the repository** due to size and privacy constraints. 
 The files should be AFM scans or current AFM scans (I-AFM, cp-AFM, cAFM etc.) of the format gwy containing differnet channels (topography, error signal, laterals force, current, etc.). These channels will be treated separately, correlated and evaluated. Within the data file there should also be a .txt file. Which contains a list of voltages applied, or paramter changes during the scan sequence recording/measuring. For further informations see def get_info_sheet in the utils_afm.py file.
 
-==============================
-
-## **2. Programm Steps**
 
 ==============================
 
+## 4. Sequential Electrical AFM Measurements
 
-1. **Data Collection**: 
-   - Collect data from the path
-   - Unpack and 
-   - bla 
+==============================
 
-2. **Data Organization**:
-   - 
-   
-3. **Data Visualization**:
-   - Create visualizations to show dependencies between brands, specifications, and fuel types.
-   
+### Measurement Procedure
+- Conduct cp-AFM, KPFM, and SCM measurements while varying parameters:
+  - Voltage
+  - Temperature
+  - Time
+  - Light
+  - Position
+  - Tip-sample distance
+  - Tip pressure
+- Record two stacks of 3D data:
+  - Topography
+  - Electrical measurements
+
+### Data Region Classification
+- Separate topography images into regions:
+  - Crystal facets
+  - Grain sides
+  - Grain boundaries (GBs)
+  - Defect-dense regions
+- Create a 2D mask to map these regions onto electrical signals for correlation.
+
+### Behavioral Analysis
+- Observe physical property changes across varying parameters.
+- Generate statistical insights surpassing point-probe spectroscopy.
+
+### Crystallographic Classification
+- Identify crystallographic facets using angular relationships.
+- Confirm orientation via XRD (e.g., (111) out-of-plane γ-CuI).
+
+### Region Segmentation
+- For small areas:
+  - Identify GB regions with slopes exceeding 25%.
+- For larger areas:
+  - Use watershed or height cut-off methods for grain classification and thin-film characterization.
+
+> **Citing from the dissertation: Chapter 3.2.4 Sequential AFM and correlation with masks**  
+![Image Processing](https://github.com/user-attachments/assets/1584d244-4594-42fc-a660-4563bc2de305)
+
+---
+
+==============================
+
+## 5. Execution Flow of Program and Data Evaluation
+
+==============================
+
+### Data Preprocessing
+- Locate and load measurement files and corresponding information sheets.
+- Combine separate signal files (e.g., topography, current, slope) into container files for correlation.
+
+### First Run
+- Process data channels (e.g., topography, slope) for:
+  - Distortion correction
+  - Plane adjustment
+  - Artifact removal
+- Generate outputs:
+  - Images and histograms
+  - Basic statistics (e.g., max, min, roughness)
+
+### Second Run
+- Create masks:
+  - Use slope thresholds to identify GB regions.
+- Segregate areas into GB and grain regions.
+- Save masked data and additional statistics (e.g., GB/grain proportions).
+
+### Third Run
+- Apply masks to electrical channels for grain/GB-specific analysis.
+- Calculate:
+  - Region-specific average currents
+  - Current proportions
+  - Noise thresholds
+- Save outputs:
+  - Separated and processed data files
+  - Final statistics
+  - Visual summaries (plots and videos)
+
+### Parameter-Dependent Analysis
+- Plot and analyze statistics (e.g., currents, region proportions) as functions of varying parameters.
+- Combine results into holistic visualizations for clear presentation.
+
+> **Citing from the dissertation: Chapter 5.5 The deployed code and evaluation approach**  
+> _Fill in text as needed._  
+
+![Data Processing](https://github.com/user-attachments/assets/03cb276f-c5f9-4c4b-a7db-3a7f71e7abc1)
+
+---
+
+==============================
+
 ## Technologies Used
-
 - Python
-- gwyddion /pygwy
+- gwyddion / pygwy
 - Pandas
-- Matplotlib / Seaborn for visualization
+- Matplotlib
 
-
-
-Citing from the dissertation: 
-
-Chapter 3.2.4 Sequential AFM and correlation with masks
-#### fill in text #### 
-<img width="858" alt="ImageProcessing" src="https://github.com/user-attachments/assets/1584d244-4594-42fc-a660-4563bc2de305">
-
-Chapter 5.5 The deployed code and evaluation approach
-
-#### fill in text #### 
-<img width="489" alt="DataProcessing" src="https://github.com/user-attachments/assets/03cb276f-c5f9-4c4b-a7db-3a7f71e7abc1">
-
+---

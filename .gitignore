@@ -1,5 +1,7 @@
-# Ignore the entire data directory
+# Ignore the entire data directories
 /data/
+/Fitted/
+/StableFrame/
 
 # Ignore temporary Python files
 *.pyc
