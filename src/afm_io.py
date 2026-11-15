@@ -97,18 +97,18 @@ def sortandlist(path):
     files_topo = [k for k in names if "Topography" in k]
     files_current = [k for k in names if "Current" in k]
     files_amp = [k for k in names if "Amplitude" in k]
-    files_phase = [k for k in names if "Phase" in k]  
+    files_phase = [k for k in names if "Phase" in k]
     files_error = [k for k in names if "Error" in k]
     #Sort files by name, so the program goes through them chronologically
     files_current = sorted(files_current)
     files_topo = sorted(files_topo)
     files_amp = sorted(files_amp)
-    files_phase = sorted(files_phase) 
-    files_error = sorted(files_error)       
+    files_phase = sorted(files_phase)
+    files_error = sorted(files_error)
     #All files are listed here as an overview before the process starts
     print( "Folgende Current Dateien werden bearbeitet:" )
     print(files_current)
-    print( "Folgende Topography Dateien werden bearbeitet:") 
+    print( "Folgende Topography Dateien werden bearbeitet:")
     print(files_topo)
     print( "Folgende Amplituden Dateien werden bearbeitet:" )
     print(files_amp)
@@ -116,14 +116,14 @@ def sortandlist(path):
     print(files_phase)
     print("Folgende Error Dateien werden bearbeitet:" )
     print(files_error)
-    #Get Number of Elements in List for overall Histogram Plot 
+    #Get Number of Elements in List for overall Histogram Plot
     N = len(files_topo)
     print("Number of treated elements:")
     print(N)
     return N, files_topo, files_current, files_amp, files_phase, files_error
 
 def make_folders(path):
-    #Working path in which the pdfs will be saved 
+    #Working path in which the pdfs will be saved
     try:
         os.makedirs(os.path.join(path, "PDFs"))
     except OSError:
@@ -131,8 +131,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "PDFs"))
         os.makedirs(os.path.join(path, "PDFs"))
     else:
-        print("Successfully made new folder") 
-    #Working path in which the jpgs will be saved 
+        print("Successfully made new folder")
+    #Working path in which the jpgs will be saved
     try:
         os.makedirs(os.path.join(path, "gifs"))
     except OSError:
@@ -140,8 +140,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "gifs"))
         os.makedirs(os.path.join(path, "gifs"))
     else:
-        print("Successfully made new folder") 
-    #Working path in which the Histogramms will be saved 
+        print("Successfully made new folder")
+    #Working path in which the Histogramms will be saved
     try:
         os.makedirs(os.path.join(path, "Histograms"))
     except OSError:
@@ -149,8 +149,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "Histograms"))
         os.makedirs(os.path.join(path, "Histograms"))
     else:
-        print("Successfully made new folder") 
-    #Working path in which the Linescans will be saved 
+        print("Successfully made new folder")
+    #Working path in which the Linescans will be saved
     try:
         os.makedirs(os.path.join(path, "Linescans"))
     except OSError:
@@ -158,8 +158,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "Linescans"))
         os.makedirs(os.path.join(path, "Linescans"))
     else:
-        print("Successfully made new folder")         
-    #Working path in which the Statistics csv plus Plots will be saved 
+        print("Successfully made new folder")
+    #Working path in which the Statistics csv plus Plots will be saved
     try:
         os.makedirs(os.path.join(path, "Statistics"))
     except OSError:
@@ -167,8 +167,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "Statistics"))
         os.makedirs(os.path.join(path, "Statistics"))
     else:
-        print("Successfully deleted and made new")     
-        #Working path in which the fitted data will be stored  
+        print("Successfully deleted and made new")
+        #Working path in which the fitted data will be stored
     try:
         os.makedirs(os.path.join(path, "Fitted"))
     except OSError:
@@ -176,8 +176,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "Fitted"))
         os.makedirs(os.path.join(path, "Fitted"))
     else:
-        print("Successfully deleted and made new")     
-            #Working path in which the stable frame data will be stored  
+        print("Successfully deleted and made new")
+            #Working path in which the stable frame data will be stored
     try:
         os.makedirs(os.path.join(path, "StableFrame"))
     except OSError:
@@ -185,8 +185,8 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "StableFrame"))
         os.makedirs(os.path.join(path, "StableFrame"))
     else:
-        print("Successfully deleted and made new")      
-                #Working path in which the jpgs will be stored  
+        print("Successfully deleted and made new")
+                #Working path in which the jpgs will be stored
     try:
         os.makedirs(os.path.join(path, "JPGs"))
     except OSError:
@@ -194,7 +194,7 @@ def make_folders(path):
         shutil.rmtree(os.path.join(path, "JPGs"))
         os.makedirs(os.path.join(path, "JPGs"))
     else:
-        print("Successfully deleted and made new")      
+        print("Successfully deleted and made new")
     path_pdfs = os.path.join(path, "PDFs")
     path_histo = os.path.join(path, "Histograms")
     path_statistics = os.path.join(path, "Statistics")
@@ -209,14 +209,14 @@ def load_data(path, name):
     import gwy
     print("Es wird gerade folgende Datei bearbeitet:")
     print(name)
-    
-    
+
+
     os.chdir(path)
     #Load data from path
     actcon = gwy.gwy_file_load(name, gwy.RUN_NONINTERACTIVE)
     #Load container into browser
     gwy.gwy_app_data_browser_add(actcon)
-    #Ids is identifikation code or key of the active container 
+    #Ids is identifikation code or key of the active container
     ids = gwy.gwy_app_data_browser_get_data_ids(actcon)
     print("With the following ids:")
     print(ids)
@@ -227,7 +227,7 @@ def data_save(actcon, fname, path_saving, path_working):
     #Save files as a new .gwy file with a _fitted ending
     os.chdir(path_saving)
     #gwy.gwy_file_save(actcon, fname)
-    
+
     gwy.gwy_file_save(actcon, fname + ".gwy")
     os.chdir(path_working)
     return actcon
@@ -238,9 +238,9 @@ def remove(actcon):
     gwy.gwy_app_data_browser_remove(actcon)
 
 def SaveStatisticsToFile(daten, path_statistics, voltage_list, name, unit):
-    #Saving of all statistic data which is in the data list into a csv data 
-    #Also adds the voltage list to the csv data 
-    print("Save statistics data....")    
+    #Saving of all statistic data which is in the data list into a csv data
+    #Also adds the voltage list to the csv data
+    print("Save statistics data....")
     # Write the statistics file to the output folder.
     try:
         d = open(os.path.join(path_statistics, name), "w")
@@ -255,13 +255,13 @@ def SaveStatisticsToFile(daten, path_statistics, voltage_list, name, unit):
         # d.write(";".join(zwischendaten) + "\n")
         d.write(zwischendaten[0] + ";" + str(voltage_list[i]) + ";" + str(zwischendaten[1]) + ";" + str(zwischendaten[2]) + ";" + str(zwischendaten[3]) + ";" +   	str(zwischendaten[4]) + ";" + str(zwischendaten[5]) + ";" + str(zwischendaten[6]) + ";" + str(zwischendaten[7]) + ";" + str(zwischendaten[8]) + ";" + str(zwischendaten[9]) + ";" + str(zwischendaten[10]) + ";" + str(zwischendaten[11]) + ";" + str(zwischendaten[12])  + "\n")
         i = i + 1
-    #close the just written data an return         
+    #close the just written data an return
     d.close()
     return
 
 def load_statistics_data(path_statistics, name):
     #Load statistics CSV data into a DataFrame.
-    #Read function 
+    #Read function
     df_stat = pd.read_csv(os.path.join(path_statistics, name), sep=";", header=[0])
     print("Loading of csv data worked!")
     return df_stat
@@ -269,7 +269,7 @@ def load_statistics_data(path_statistics, name):
 def make_drift_list(drift, offset_by_drift, i, dlist, path, path_statistics, dataframes, name):
     """
     Record drift measurements and save to CSV file.
-    
+
     Args:
         drift: Current (x,y) drift vector
         offset_by_drift: Cumulative (x,y) offset from first image
@@ -279,10 +279,10 @@ def make_drift_list(drift, offset_by_drift, i, dlist, path, path_statistics, dat
         path_statistics: Statistics output directory path
         dataframes: List of image dataframes
         name: Output filename
-        
+
     Returns:
         list: Updated drift measurements list
-        
+
     Notes:
         Saves drift data as CSV with columns:
         - Iteration
@@ -292,12 +292,12 @@ def make_drift_list(drift, offset_by_drift, i, dlist, path, path_statistics, dat
     # Add current measurements to list
     current_data = (i, offset_by_drift[0], offset_by_drift[1], drift[0], drift[1])
     dlist.append(current_data)
-    
+
     # Save the complete drift list on the final iteration.
     if i == len(dataframes) - 1:
         os.chdir(path_statistics)
         print("Saving drift data...")
-        
+
         try:
             with open(name, "w") as d:
                 # Write header
@@ -305,18 +305,18 @@ def make_drift_list(drift, offset_by_drift, i, dlist, path, path_statistics, dat
                        "Y Offset by drift from first image [px];" +
                        "X Drift from image before [px];" +
                        "Y Drift from image before [px]\n")
-                
+
                 # Write data rows
                 for data in dlist:
                     d.write(";".join(str(x) for x in data) + "\n")
-                    
+
         except IOError:
             print("Failed to access file")
             sys.exit(0)
-            
+
         os.chdir(path)
-        
+
     else:
         print("Current drift list:", dlist)
-        
+
     return dlist
