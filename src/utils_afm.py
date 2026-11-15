@@ -161,7 +161,9 @@ offset_by_drift2 = (0, 0)  # Secondary drift offset
 ##################################################################################################
 
 def sortandlist(path):
+    names = os.listdir(path)
     files_topo = [k for k in names if "Topography" in k]
+    files_current = [k for k in names if "Current" in k]
     files_amp = [k for k in names if "Amplitude" in k]
     files_phase = [k for k in names if "Phase" in k]  
     files_error = [k for k in names if "Error" in k]
@@ -208,84 +210,84 @@ def get_info_sheet(path, name):
 def make_folders(path):
     #Working path in which the pdfs will be saved 
     try:
-        os.makedirs(path + "PDFs")        
+        os.makedirs(os.path.join(path, "PDFs"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "PDFs")
-        os.makedirs(path + "PDFs")        
+        shutil.rmtree(os.path.join(path, "PDFs"))
+        os.makedirs(os.path.join(path, "PDFs"))
     else:
         print("Successfully made new folder") 
     #Working path in which the jpgs will be saved 
     try:
-        os.makedirs(path + "gifs")        
+        os.makedirs(os.path.join(path, "gifs"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "gifs")
-        os.makedirs(path + "gifs")        
+        shutil.rmtree(os.path.join(path, "gifs"))
+        os.makedirs(os.path.join(path, "gifs"))
     else:
         print("Successfully made new folder") 
     #Working path in which the Histogramms will be saved 
     try:
-        os.makedirs(path + "Histograms")        
+        os.makedirs(os.path.join(path, "Histograms"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "Histograms")
-        os.makedirs(path + "Histograms")
+        shutil.rmtree(os.path.join(path, "Histograms"))
+        os.makedirs(os.path.join(path, "Histograms"))
     else:
         print("Successfully made new folder") 
     #Working path in which the Linescans will be saved 
     try:
-        os.makedirs(path + "Linescans")        
+        os.makedirs(os.path.join(path, "Linescans"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "Linescans")
-        os.makedirs(path + "Linescans")
+        shutil.rmtree(os.path.join(path, "Linescans"))
+        os.makedirs(os.path.join(path, "Linescans"))
     else:
         print("Successfully made new folder")         
     #Working path in which the Statistics csv plus Plots will be saved 
     try:
-        os.makedirs(path + "Statistics")        
+        os.makedirs(os.path.join(path, "Statistics"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "Statistics")
-        os.makedirs(path + "Statistics")
+        shutil.rmtree(os.path.join(path, "Statistics"))
+        os.makedirs(os.path.join(path, "Statistics"))
     else:
         print("Successfully deleted and made new")     
         #Working path in which the fitted data will be stored  
     try:
-        os.makedirs(path + "Fitted")        
+        os.makedirs(os.path.join(path, "Fitted"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "Fitted")
-        os.makedirs(path + "Fitted")
+        shutil.rmtree(os.path.join(path, "Fitted"))
+        os.makedirs(os.path.join(path, "Fitted"))
     else:
         print("Successfully deleted and made new")     
             #Working path in which the stable frame data will be stored  
     try:
-        os.makedirs(path + "StableFrame")        
+        os.makedirs(os.path.join(path, "StableFrame"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "StableFrame")
-        os.makedirs(path + "StableFrame")
+        shutil.rmtree(os.path.join(path, "StableFrame"))
+        os.makedirs(os.path.join(path, "StableFrame"))
     else:
         print("Successfully deleted and made new")      
                 #Working path in which the jpgs will be stored  
     try:
-        os.makedirs(path + "JPGs")        
+        os.makedirs(os.path.join(path, "JPGs"))
     except OSError:
         print("Folder exists already, will be deleted and replaced by new one")
-        shutil.rmtree(path + "JPGs")
-        os.makedirs(path + "JPGs")
+        shutil.rmtree(os.path.join(path, "JPGs"))
+        os.makedirs(os.path.join(path, "JPGs"))
     else:
         print("Successfully deleted and made new")      
-    path_pdfs = path + "PDFs"
-    path_histo = path + "Histograms"    
-    path_statistics = path + "Statistics"  
-    path_gifs = path + "gifs"
-    path_lines = path + "Linescans"
-    path_fitted = path + "Fitted"
-    path_stableframe = path + "StableFrame"
-    path_jpgs = path + "JPGs"
+    path_pdfs = os.path.join(path, "PDFs")
+    path_histo = os.path.join(path, "Histograms")
+    path_statistics = os.path.join(path, "Statistics")
+    path_gifs = os.path.join(path, "gifs")
+    path_lines = os.path.join(path, "Linescans")
+    path_fitted = os.path.join(path, "Fitted")
+    path_stableframe = os.path.join(path, "StableFrame")
+    path_jpgs = os.path.join(path, "JPGs")
     return path_pdfs, path_histo, path_statistics, path_gifs, path_jpgs, path_lines, path_fitted, path_stableframe
 
 
@@ -322,10 +324,9 @@ def SaveStatisticsToFile(daten, path_statistics, voltage_list, name, unit):
     #Saving of all statistic data which is in the data list into a csv data 
     #Also adds the voltage list to the csv data 
     print("Save statistics data....")    
-    #before saving change into statistics folder
-    os.chdir(path_statistics)
+    # Write the statistics file to the output folder.
     try:
-        d = open(name, "w")
+        d = open(os.path.join(path_statistics, name), "w")
     except:
         print("Dateizugriff nicht erfolgreich")
         sys.exit(0)
@@ -339,18 +340,12 @@ def SaveStatisticsToFile(daten, path_statistics, voltage_list, name, unit):
         i = i + 1
     #close the just written data an return         
     d.close()
-	#Change back to working directory
-    os.chdir(path)    
     return 
 
 def load_statistics_data(path_statistics, name):
-    #Function to load statistics data csv data into the browser and make statistics data frame 
-    #Change to statistics folder for loading csv data
-    os.chdir(path_statistics)
+    #Load statistics CSV data into a DataFrame.
     #Read function 
-    df_stat = pd.read_csv(name, sep=";", header=[0])
-    #Go back to working directory 
-    os.chdir(path)
+    df_stat = pd.read_csv(os.path.join(path_statistics, name), sep=";", header=[0])
     print("Loading of csv data worked!")
     return df_stat
 
@@ -546,14 +541,14 @@ def select_range(actcon, range_topo, key):
     
     Args:
         actcon: Active container
-        range_val (float): Maximum absolute value for scale
+        range_topo (float): Maximum absolute value for scale
         key (int): Data field key
         
     Returns:
         actcon: Updated container with fixed range
     """
-    actcon.set_double_by_name("/{}/base/max".format(key), range_val)
-    actcon.set_double_by_name("/{}/base/min".format(key), -range_val)
+    actcon.set_double_by_name("/{}/base/max".format(key), range_topo)
+    actcon.set_double_by_name("/{}/base/min".format(key), -range_topo)
     actcon.set_int32_by_name("/{}/base/range-type".format(key), 1)
     #set range type: 0 = Full, 1 = Fixed, 2 = Automatic, 3 = Adaptive     
     #actcon.set_logarithmic(is_logarithmic)
@@ -775,9 +770,7 @@ def make_statistics_plot_multi(df, x_column, y_column1, y_column2, y_column3,
     plt.tight_layout()
     
     # Save plot
-    os.chdir(path_statistics)
-    plt.savefig("{}.pdf".format(name), format="pdf")
-    os.chdir(path)
+    plt.savefig(os.path.join(path_statistics, "{}.pdf".format(name)), format="pdf")
     plt.show()
     return 
 
@@ -1123,8 +1116,8 @@ def make_drift_list(drift, offset_by_drift, i, dlist, path, path_statistics, dat
     current_data = (i, offset_by_drift[0], offset_by_drift[1], drift[0], drift[1])
     dlist.append(current_data)
     
-    # Save data on all but last iteration
-    if i != len(dataframes) - 1:
+    # Save the complete drift list on the final iteration.
+    if i == len(dataframes) - 1:
         os.chdir(path_statistics)
         print("Saving drift data...")
         
@@ -1242,7 +1235,7 @@ def get_time(list_of_filenames):
         ['20230401', '20230402']
     """
     # Sort filenames by timestamp
-    sorted(list_of_filenames, key=extract_time)
+    list_of_filenames = sorted(list_of_filenames, key=extract_time)
     list_TIME = []
     
     for filename in list_of_filenames:
@@ -1298,7 +1291,7 @@ def print_df_NumpyArray(df):
 ########################## Pipeline Functions #################################################
 ##################################################################################################
 
-def first_run_topo(voltage_list, lines_cutoff, fnames_topo, factor = 9, daten):
+def first_run_topo(voltage_list, lines_cutoff, fnames_topo, daten, factor=9):
     """
     Performs the first run of the topography pipeline.
 
@@ -1655,11 +1648,11 @@ def assemble(n, topo, error, current, amp, phase, time_list, path_new):
         path_new (str): Output directory path
     """
     # Sort files by timestamp
-    sorted(topo, key=extract_time)
-    sorted(error, key=extract_time)
-    sorted(current, key=extract_time)
-    sorted(amp, key=extract_time)
-    sorted(phase, key=extract_time)
+    topo = sorted(topo, key=extract_time)
+    error = sorted(error, key=extract_time)
+    current = sorted(current, key=extract_time)
+    amp = sorted(amp, key=extract_time)
+    phase = sorted(phase, key=extract_time)
 
     for i in range(len(topo)):
         print('Iteration run: i=')
@@ -1719,7 +1712,7 @@ def assemble(n, topo, error, current, amp, phase, time_list, path_new):
             remove(actcon_phase) 
             
         # Save combined file
-        actcon_topo = data_save(actcon_topo, name, path_newData, path)
+        actcon_topo = data_save(actcon_topo, name, path_new, path)
         remove(actcon_topo)
 
     return
