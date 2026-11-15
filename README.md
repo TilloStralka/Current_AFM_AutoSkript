@@ -17,7 +17,7 @@ It is recommended to work with a venv, since this project works with the outdate
 1. Clone the repository:
     ```bash
     git clone https://github.com/TilloStralka/Current_AFM_AutoSkript.git
-    cd CO2_Emission_Predictor
+    cd Current_AFM_AutoSkript
     ```
 
 2. Create a virtual environment and activate it:
